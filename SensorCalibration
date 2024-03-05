@@ -3,7 +3,10 @@ int irsensorSS = 0; //Short Side sensor is attached on
 int irsensorLF = 0; //Long Front sensor is attached on 
 int irsensorLS = 0; //Long Side sensor is attached on 
 byte serialRead = 0; //for control serial communication
-int signalADC = 0; // the read out signal in 0-1023 corresponding to 0-5v
+float ADCsignalSF = 0; // the read out signal in 0-1023 corresponding to 0-5v
+float ADCsignalSS = 0; // the read out signal in 0-1023 corresponding to 0-5v
+float ADCsignalLF = 0; // the read out signal in 0-1023 corresponding to 0-5v
+float ADCsignalLS = 0; // the read out signal in 0-1023 corresponding to 0-5v
 void setup() {
 // put your setup code here, to run once:
 Serial.begin(115200); // start serial communication
@@ -18,8 +21,14 @@ if (serialRead==49) // Check for flag to execute, 49 is ascii for 1, stop serial
 Serial.end(); // end the serial communication to get the sensor data
 }
 }
-ADCsignalSF = analogRead(irsensorSF); // the read out is a signal from 0-1023 corresponding to 0-5v
+ADCsignalSF = analogRead(irsensorSF); // the read out is a signal from 0-1023 corresponding to 0-5v Short Front 
+ADCsignalSS = analogRead(irsensorSS); // the read out is a signal from 0-1023 corresponding to 0-5v Short Side
+ADCsignalLF = analogRead(irsensorLF); // the read out is a signal from 0-1023 corresponding to 0-5v Long Front 
+ADCsignalLS = analogRead(irsensorLS); // the read out is a signal from 0-1023 corresponding to 0-5v Long Side
 float distanceSF = 4229*pow(ADCsignalSF,-0.862); // calculate the distance using the datasheet graph
+float distanceSS = 4229*pow(ADCsignalSF,-0.862); // calculate the distance using the datasheet graph
+float distanceLF = 4229*pow(ADCsignalSF,-0.862); // calculate the distance using the datasheet graph
+float distanceLS = 4229*pow(ADCsignalSF,-0.862); // calculate the distance using the datasheet graph
 Serial.print("Distance Short Front"); //print out the results on serial monitor
 Serial.print(distanceSF);
 Serial.println("cm");
