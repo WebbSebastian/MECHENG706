@@ -27,8 +27,8 @@ ADCsignalLF = analogRead(irsensorLF); // the read out is a signal from 0-1023 co
 ADCsignalLS = analogRead(irsensorLS); // the read out is a signal from 0-1023 corresponding to 0-5v Long Side
 float distanceSF = 4229*pow(ADCsignalSF,-0.862); // calculate the distance using the datasheet graph
 float distanceSS = 4229*pow(ADCsignalSF,-0.862); // calculate the distance using the datasheet graph
-float distanceLF = 4229*pow(ADCsignalSF,-0.862); // calculate the distance using the datasheet graph
-float distanceLS = 4229*pow(ADCsignalSF,-0.862); // calculate the distance using the datasheet graph
+float distanceLF = 13.16092 + (153.9881 - 13.16092)/(1 + pow((ADCsignalLF/78.4712), 2.3085)); // calculate the distance using the datasheet graph
+float distanceLS = 13.16092 + (153.9881 - 13.16092)/(1 + pow((ADCsignalLS/78.4712), 2.3085)); // calculate the distance using the datasheet graph
 Serial.print("Distance Short Front"); //print out the results on serial monitor
 Serial.print(distanceSF);
 Serial.println("cm");
