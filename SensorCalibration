@@ -1,7 +1,7 @@
-int irsensorSF = A3; //Short Front sensor is attached on pinA0
+int irsensorSF = 0; //Short Front sensor is attached on pinA0
 int irsensorSS = 0; //Short Side sensor is attached on 
-int irsensorLF = 0; //Long Front sensor is attached on 
-int irsensorLS = 0; //Long Side sensor is attached on 
+int irsensorLF = A3; //Long Front sensor is attached on 
+int irsensorLS = A8; //Long Side sensor is attached on 
 byte serialRead = 0; //for control serial communication
 float ADCsignalSF = 0; // the read out signal in 0-1023 corresponding to 0-5v
 float ADCsignalSS = 0; // the read out signal in 0-1023 corresponding to 0-5v
@@ -29,12 +29,11 @@ float distanceSF = 2428*pow(ADCsignalSF,-1); // calculate the distance using the
 float distanceSS = 2428*pow(ADCsignalSS,-1); // calculate the distance using the datasheet graph
 float distanceLF = 13.16092 + (153.9881 - 13.16092)/(1 + pow((ADCsignalLF/78.4712), 2.3085)); // calculate the distance using the datasheet graph
 float distanceLS = 13.16092 + (153.9881 - 13.16092)/(1 + pow((ADCsignalLS/78.4712), 2.3085)); // calculate the distance using the datasheet graph
-Serial.print("Distance Short Front"); //print out the results on serial monitor
-Serial.print(distanceSF);
-Serial.println("cm");
-Serial.print(" ");
-Serial.print("ADC signal Short Front ");
-Serial.print(ADCsignalSF);
-Serial.println("V");
+Serial.print("SF: ");Serial.print(distanceSF); Serial.print("cm  "); Serial.print(ADCsignalSF); Serial.print("V     ");
+Serial.print("SS: "); Serial.print(distanceSS); Serial.print("cm  "); Serial.print(ADCsignalSS); Serial.print("V        ");
+Serial.print("LF: "); Serial.print(distanceLF); Serial.print("cm  "); Serial.print(ADCsignalLF); Serial.print("V        ");
+Serial.print("LS: "); Serial.print(distanceLS); Serial.print("cm "); Serial.print("V "); Serial.println("");
+
+
 delay(500);
 }
