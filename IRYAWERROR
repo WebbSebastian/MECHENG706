@@ -7,14 +7,11 @@ float angleError, error = 0;
 
 if (range == 0){//If range is 0 get value for short range sensors
 error = distanceSF-distanceSS;
-
-angleError = tan(error/DistanceLong);
 }
 else {//Range is 1 get value for long range sensors
 error = distanceLF-distanceLS;
-
-angleError = tan(error/DistanceLong);
 }
+angleError = tan(error/DistanceLong);
 
 return angleError;
 }
