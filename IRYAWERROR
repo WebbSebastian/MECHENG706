@@ -5,13 +5,12 @@ float IrYawError(bool range)//Function calculates the yaw error in degrees of th
 
 float angleError, error = 0;
 
-if (range == 0){//If range is 0 get value for short range sensors
+if (range == 0){//If range is 0 get value for/from short range sensors
 error = distanceSF-distanceSS;
 }
-else {//Range is 1 get value for long range sensors
+else {//Range is 1 get value for/from long range sensors
 error = distanceLF-distanceLS;
 }
 angleError = tan(error/DistanceLong);
 
 return angleError;
-}
