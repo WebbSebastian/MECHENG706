@@ -1,6 +1,6 @@
 float DistanceLong = 21.55//WILL NEED TO BE TUNED add float to setup for Distance between front and back long sensors in CM
 
-float IRAngleCalc(bool range)//Function calculates the yaw error in degrees of the robot based on the IR sensors
+float IrYawError(bool range)//Function calculates the yaw error in degrees of the robot based on the IR sensors
 {
 
 float angleError, error = 0;
