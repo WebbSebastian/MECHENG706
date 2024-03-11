@@ -617,5 +617,7 @@ else {//Range is 1 get value for/from long range sensors
 error = (DistanceIR(LF)-DistanceIR(LB));
 error = tan(error/DistanceLong);
 }
+
+error = error * (180.0 / PI);//converts from rads to degrees
 return error;
 }
