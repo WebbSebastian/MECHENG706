@@ -54,7 +54,7 @@ Servo right_rear_motor;  // create servo object to control Vex Motor Controller 
 Servo right_font_motor;  // create servo object to control Vex Motor Controller 29
 Servo turret_motor;
 
-int speed_val = 100;
+int speed_val = 200;
 int speed_change;
 
 // Variables for straight drive error
@@ -69,8 +69,8 @@ HardwareSerial *SerialCom;
 ////////////////////// IR SENSOR PINS and Variables//////////////
 const int irsensorSF = A10; //Short Front sensor is attached on pinA0
 const int irsensorSS = A11; //Short Side sensor is attached on 
-const int irsensorLF = A9; //Long Front sensor is attached on 
-const int irsensorLS = A8; //Long Side sensor is attached on 
+const int irsensorLF = A8; //Long Front sensor is attached on 
+const int irsensorLS = A9; //Long Side sensor is attached on 
 byte serialRead = 0; //for control serial communication
 float ADCsignalSF = 0; // the read out signal in 0-1023 corresponding to 0-5v
 float ADCsignalSS = 0; // the read out signal in 0-1023 corresponding to 0-5v
@@ -83,7 +83,7 @@ float ADCsignalLS = 0; // the read out signal in 0-1023 corresponding to 0-5v
 //int signalADC = 0; // the read out signal in 0-1023 corresponding to 0-5v
 
 //Serial Controls
-#define IR_SERIAL 0
+#define IR_SERIAL 1
 #define US_SERIAL 0
 #define GYRO_SERIAL
 
@@ -127,25 +127,27 @@ void loop(void) //main loop
   };
 
   if (Serial.available()) // Check for input from terminal
-{
-serialRead = Serial.read(); // Read input
-  if (serialRead==49) // Check for flag to execute, 49 is ascii for 1, stop serial printing
   {
-    Serial.end(); // end the serial communication to get the sensor data
+    serialRead = Serial.read(); // Read input
+    if (serialRead==49) // Check for flag to execute, 49 is ascii for 1, stop serial printing
+    {
+      Serial.end(); // end the serial communication to get the sensor data
+    }
   }
-}
-ADCsignalSF = analogRead(irsensorSF); // the read out is a signal from 0-1023 corresponding to 0-5v Short Front 
-ADCsignalSS = analogRead(irsensorSS); // the read out is a signal from 0-1023 corresponding to 0-5v Short Side
-ADCsignalLF = analogRead(irsensorLF); // the read out is a signal from 0-1023 corresponding to 0-5v Long Front 
-ADCsignalLS = analogRead(irsensorLS); // the read out is a signal from 0-1023 corresponding to 0-5v Long Side
-float distanceSF = 2428*pow(ADCsignalSF,-1); // calculate the distance using the datasheet graph
-float distanceSS = 2428*pow(ADCsignalSS,-1); // calculate the distance using the datasheet graph
-float distanceLF = 13.16092 + (153.9881 - 13.16092)/(1 + pow((ADCsignalLF/78.4712), 2.3085)); // calculate the distance using the datasheet graph
-float distanceLS = 13.16092 + (153.9881 - 13.16092)/(1 + pow((ADCsignalLS/78.4712), 2.3085)); // calculate the distance using the datasheet graph
+  ADCsignalSF = analogRead(irsensorSF); // the read out is a signal from 0-1023 corresponding to 0-5v Short Front 
+  ADCsignalSS = analogRead(irsensorSS); // the read out is a signal from 0-1023 corresponding to 0-5v Short Side
+  ADCsignalLF = analogRead(irsensorLF); // the read out is a signal from 0-1023 corresponding to 0-5v Long Front 
+  ADCsignalLS = analogRead(irsensorLS); // the read out is a signal from 0-1023 corresponding to 0-5v Long Side
+  float distanceSF = 2428*pow(ADCsignalSF,-1); // calculate the distance using the datasheet graph
+  float distanceSS = 2428*pow(ADCsignalSS,-1); // calculate the distance using the datasheet graph
+  float distanceLF = 13.16092 + (153.9881 - 13.16092)/(1 + pow((ADCsignalLF/78.4712), 2.3085)); // calculate the distance using the datasheet graph
+  float distanceLS = 13.16092 + (153.9881 - 13.16092)/(1 + pow((ADCsignalLS/78.4712), 2.3085)); // calculate the distance using the datasheet graph
 
-float distanceUS = HC_SR04_range();
+  float distanceUS = HC_SR04_range();
+  //SerialCom->println(distanceUS);
 
-straight_drive();
+
+  straight_drive(distanceLS, distanceLF, distanceUS);
 
 
   if(IR_SERIAL){ //Serial controll for the IR sensor
@@ -154,10 +156,13 @@ straight_drive();
     Serial.print("SS: "); Serial.print(distanceSS); Serial.print("cm  "); Serial.print(ADCsignalSS); Serial.print("          ");
     Serial.print("LF: "); Serial.print(distanceLF); Serial.print("cm  "); Serial.print(ADCsignalLF); Serial.print("         ");
     Serial.print("LS: "); Serial.print(distanceLS); Serial.print("cm "); Serial.print(ADCsignalLS); Serial.println("");
-    delay(500);
+    Serial.print("US: "); Serial.print(distanceUS); Serial.print("cm "); Serial.println("");
+    delay(50);
 
   }
+  
 }
+
 
 STATE initialising() {
   //initialising
@@ -188,7 +193,7 @@ STATE running() {
     #endif
 
     #ifndef NO_HC-SR04
-      HC_SR04_range();
+      //HC_SR04_range();
     #endif
 
     #ifndef NO_BATTERY_V_OK
@@ -328,7 +333,7 @@ boolean is_battery_voltage_OK()
 #endif
 
 #ifndef NO_HC-SR04
-void HC_SR04_range()
+float HC_SR04_range()
 {
   unsigned long t1;
   unsigned long t2;
@@ -361,7 +366,7 @@ void HC_SR04_range()
     t2 = micros();
     pulse_width = t2 - t1;
     if ( pulse_width > (MAX_DIST + 1000) ) {
-      SerialCom->println("HC-SR04: Out of range");
+      //SerialCom->println("HC-SR04: Out of range");
       return;
     }
   }
@@ -377,12 +382,13 @@ void HC_SR04_range()
 
   // Print out results
   if ( pulse_width > MAX_DIST ) {
-    SerialCom->println("HC-SR04: Out of range");
+    //SerialCom->println("HC-SR04: Out of range");
   } else {
-    SerialCom->print("HC-SR04:");
-    SerialCom->print(cm);
-    SerialCom->println("cm");
+    //SerialCom->print("HC-SR04:");
+    //SerialCom->print(cm);
+    //SerialCom->println("cm");
   }
+  return cm;
 }
 #endif
 
@@ -596,20 +602,25 @@ void diagonal_downleft ()
   right_font_motor.writeMicroseconds(1500);
 }
 
-void straight_drive ()
+
+void straight_drive (float distanceLS, float distanceLF, float distanceUS)
 {
-  int angleError = 100 * (distanceLS - distanceLF);
-  int edgeError = 100 * (edgeDist - distanceLF);
+  int edgeDist = 30;
+
+  int angleError = 30 * (distanceLS - distanceLF);
+  //int edgeError = 100 * (edgeDist - distanceLF);
+  int edgeError = 0;
+
+  right_rear_motor.writeMicroseconds(1500 + speed_val + angleError + edgeError);
+  right_font_motor.writeMicroseconds(1500 + speed_val + angleError - edgeError);
+  left_font_motor.writeMicroseconds(1500 - speed_val + angleError - edgeError);
+  left_rear_motor.writeMicroseconds(1500 - speed_val + angleError + edgeError);
 
 
-  left_font_motor.writeMicroseconds(1500 + speed_val + angleError + edgeError);
-  left_rear_motor.writeMicroseconds(1500 + speed_val + angleError - edgeError);
-  right_rear_motor.writeMicroseconds(1500 - speed_val + angleError - edgeError);
-  right_font_motor.writeMicroseconds(1500 - speed_val + angleError + edgeError);
-
-  if distanceUS < 30
+  if (distanceUS < 30)
   {
-    stop()
+    stop();
   }  
+  
 }
 
