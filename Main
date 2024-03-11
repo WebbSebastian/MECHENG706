@@ -601,7 +601,7 @@ else {
 return distance;
 }
 
-float IrError(bool range)//Function calculates the yaw error in degrees of the robot based on the IR sensors
+float IrYawError(bool range)//Function calculates the yaw error in degrees of the robot based on the IR sensors
 {
   
 float error = 0;
