@@ -31,7 +31,7 @@ Serial.end(); // end the serial communication to get the sensor data
 // Serial.print("SS: "); Serial.print(distanceSS); Serial.print("cm  "); Serial.print(ADCsignalSS); Serial.print("          ");
 // Serial.print("LF: "); Serial.print(distanceLF); Serial.print("cm  "); Serial.print(ADCsignalLF); Serial.print("         ");
 // Serial.print("LS: "); Serial.print(distanceLS); Serial.print("cm "); Serial.print(ADCsignalLS); Serial.println("");
-float angle = IrRawError(true);
+float angle = IrError(true);
 Serial.print(angle);
 delay(500);
 }
@@ -57,21 +57,20 @@ else {
 return distance;
 }
 
-float IrYawError(bool range)//Function calculates the yaw error in degrees of the robot based on the IR sensors
+float IrError(bool range)//Function calculates the yaw error in degrees of the robot based on the IR sensors
 {
-
-float angleError, error = 0;
+  
+float error = 0;
 
 if (range == 0){//If range is 0 get value for/from short range sensors
-error = distanceSF-distanceSS;
-angleError = tan(error/DistanceShort);
+error = DistanceIR(SF)-DistanceIR(SB);
+error = tan(error/DistanceShort);
 }
 else {//Range is 1 get value for/from long range sensors
-error = distanceLF-distanceLS;
-angleError = tan(error/DistanceLong);
+error = DistanceIR(LF)-DistanceIR(LB);
+error = tan(error/DistanceLong);
+}
+return error;
 }
 
-
-return angleError;
-}
 
