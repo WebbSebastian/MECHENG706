@@ -138,9 +138,12 @@ serialRead = Serial.read(); // Read input
     Serial.print("LB: "); Serial.print(DistanceIR(LB)); Serial.print("cm  "); Serial.print(analogRead(irsensorLB)); Serial.print("          ");
     Serial.print("SF: "); Serial.print(DistanceIR(SF)); Serial.print("cm  "); Serial.print(analogRead(irsensorSF)); Serial.print("         ");
     Serial.print("SB: "); Serial.print(DistanceIR(SB)); Serial.print("cm "); Serial.print(analogRead(irsensorSB)); Serial.println("");
+    Serial.print("YAW: "); Serial.print(DistanceIR(IrYawError(1)));
+    
     delay(500);
-
   }
+
+  
 }
 
 STATE initialising() {
@@ -607,11 +610,11 @@ float IrYawError(bool range)//Function calculates the yaw error in degrees of th
 float error = 0;
 
 if (range == 0){//If range is 0 get value for/from short range sensors
-error = DistanceIR(SF)-DistanceIR(SB);
+error = (DistanceIR(SF)/DistanceIR(SB));
 error = tan(error/DistanceShort);
 }
 else {//Range is 1 get value for/from long range sensors
-error = DistanceIR(LF)-DistanceIR(LB);
+error = (DistanceIR(LF)/DistanceIR(LB));
 error = tan(error/DistanceLong);
 }
 return error;
