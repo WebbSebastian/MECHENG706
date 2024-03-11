@@ -134,10 +134,10 @@ serialRead = Serial.read(); // Read input
 
   if(IR_SERIAL){ //Serial controll for the IR sensor
 
-    Serial.print("LF: "); Serial.print(DistanceIR(LF)); Serial.print("cm  "); Serial.print("      ");
-    Serial.print("LB: "); Serial.print(DistanceIR(LB)); Serial.print("cm  "); Serial.print("          ");
-    Serial.print("SF: "); Serial.print(DistanceIR(SF)); Serial.print("cm  "); Serial.print("         ");
-    Serial.print("SB: "); Serial.print(DistanceIR(SB)); Serial.print("cm "); Serial.println("");
+    Serial.print("LF: "); Serial.print(DistanceIR(LF)); Serial.print("cm  "); Serial.print(analogRead(irsensorLF)); Serial.print("      ");
+    Serial.print("LB: "); Serial.print(DistanceIR(LB)); Serial.print("cm  "); Serial.print(analogRead(irsensorLB)); Serial.print("          ");
+    Serial.print("SF: "); Serial.print(DistanceIR(SF)); Serial.print("cm  "); Serial.print(analogRead(irsensorSF)); Serial.print("         ");
+    Serial.print("SB: "); Serial.print(DistanceIR(SB)); Serial.print("cm "); Serial.print(analogRead(irsensorSB)); Serial.println("");
     delay(500);
 
   }
