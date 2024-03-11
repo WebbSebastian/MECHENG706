@@ -1,13 +1,18 @@
 int irsensorSF = A10; //Short Front sensor is attached on pinA0
-int irsensorSS = A11; //Short Side sensor is attached on 
+int irsensorSB = A11; //Short Side sensor is attached on 
 int irsensorLF = A9; //Long Front sensor is attached on 
-int irsensorLS = A8; //Long Side sensor is attached on 
+int irsensorLB = A8; //Long Side sensor is attached on 
 byte serialRead = 0; //for control serial communication
-float ADCsignalSF = 0; // the read out signal in 0-1023 corresponding to 0-5v
-float ADCsignalSS = 0; // the read out signal in 0-1023 corresponding to 0-5v
-float ADCsignalLF = 0; // the read out signal in 0-1023 corresponding to 0-5v
-float ADCsignalLS = 0; // the read out signal in 0-1023 corresponding to 0-5v
+float DistanceLong = 21.55;//WILL NEED TO BE TUNED add float to setup for Distance between front and back long sensors in CM
+float DistanceShort = 21.55;//WILL NEED TO BE TUNED add float to setup for Distance between front and back short sensors in CM
+#define LF 0 //Long front sensor
+#define LB 1 //Long back sensor
+#define SF 2 //Short front sensor
+#define SB 3 //Short rear sensor
+
 void setup() {
+ 
+
 // put your setup code here, to run once:
 Serial.begin(115200); // start serial communication
 }
@@ -21,19 +26,52 @@ if (serialRead==49) // Check for flag to execute, 49 is ascii for 1, stop serial
 Serial.end(); // end the serial communication to get the sensor data
 }
 }
-ADCsignalSF = analogRead(irsensorSF); // the read out is a signal from 0-1023 corresponding to 0-5v Short Front 
-ADCsignalSS = analogRead(irsensorSS); // the read out is a signal from 0-1023 corresponding to 0-5v Short Side
-ADCsignalLF = analogRead(irsensorLF); // the read out is a signal from 0-1023 corresponding to 0-5v Long Front 
-ADCsignalLS = analogRead(irsensorLS); // the read out is a signal from 0-1023 corresponding to 0-5v Long Side
-float distanceSF = 2428*pow(ADCsignalSF,-1); // calculate the distance using the datasheet graph
-float distanceSS = 2428*pow(ADCsignalSS,-1); // calculate the distance using the datasheet graph
-float distanceLF = 13.16092 + (153.9881 - 13.16092)/(1 + pow((ADCsignalLF/78.4712), 2.3085)); // calculate the distance using the datasheet graph
-float distanceLS = 13.16092 + (153.9881 - 13.16092)/(1 + pow((ADCsignalLS/78.4712), 2.3085)); // calculate the distance using the datasheet graph
-Serial.print("SF: "); Serial.print(distanceSF); Serial.print("cm  "); Serial.print(ADCsignalSF); Serial.print("      ");
-Serial.print("SS: "); Serial.print(distanceSS); Serial.print("cm  "); Serial.print(ADCsignalSS); Serial.print("          ");
-Serial.print("LF: "); Serial.print(distanceLF); Serial.print("cm  "); Serial.print(ADCsignalLF); Serial.print("         ");
-Serial.print("LS: "); Serial.print(distanceLS); Serial.print("cm "); Serial.print(ADCsignalLS); Serial.println("");
 
-
+// Serial.print("SF: "); Serial.print(distanceSF); Serial.print("cm  "); Serial.print(ADCsignalSF); Serial.print("      ");
+// Serial.print("SS: "); Serial.print(distanceSS); Serial.print("cm  "); Serial.print(ADCsignalSS); Serial.print("          ");
+// Serial.print("LF: "); Serial.print(distanceLF); Serial.print("cm  "); Serial.print(ADCsignalLF); Serial.print("         ");
+// Serial.print("LS: "); Serial.print(distanceLS); Serial.print("cm "); Serial.print(ADCsignalLS); Serial.println("");
+float angle = IrRawError(true);
+Serial.print(angle);
 delay(500);
 }
+
+float DistanceIR(int range){//Could add the sonar sensor to this and just have one complete distance fuction
+float distance = 0;
+if (range == LF){
+  distance = analogRead(irsensorLF); // the read out is a signal from 0-1023 corresponding to 0-5v Short Front 
+  distance = 13.16092 + (153.9881 - 13.16092)/(1 + pow((distance/78.4712), 2.3085)); // calculate the distance using the datasheet graph
+}
+else if (range == LB){
+  distance = analogRead(irsensorLB); // the read out is a signal from 0-1023 corresponding to 0-5v Short Front 
+  distance = 13.16092 + (153.9881 - 13.16092)/(1 + pow((distance/78.4712), 2.3085)); // calculate the distance using the datasheet graph
+}
+else if (range == SF){
+  distance = analogRead(irsensorSF); // the read out is a signal from 0-1023 corresponding to 0-5v Short Front 
+  distance = 2428*pow(distance,-1); // calculate the distance using the datasheet graph
+}
+else {
+  distance = analogRead(irsensorSB); // the read out is a signal from 0-1023 corresponding to 0-5v Short Front 
+  distance = 2428*pow(distance,-1); // calculate the distance using the datasheet graph
+}
+return distance;
+}
+
+float IrYawError(bool range)//Function calculates the yaw error in degrees of the robot based on the IR sensors
+{
+
+float angleError, error = 0;
+
+if (range == 0){//If range is 0 get value for/from short range sensors
+error = distanceSF-distanceSS;
+angleError = tan(error/DistanceShort);
+}
+else {//Range is 1 get value for/from long range sensors
+error = distanceLF-distanceLS;
+angleError = tan(error/DistanceLong);
+}
+
+
+return angleError;
+}
+
