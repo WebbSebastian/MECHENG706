@@ -137,8 +137,8 @@ serialRead = Serial.read(); // Read input
     Serial.print("LF: "); Serial.print(DistanceIR(LF)); Serial.print("cm  "); Serial.print(analogRead(irsensorLF)); Serial.print("      ");
     Serial.print("LB: "); Serial.print(DistanceIR(LB)); Serial.print("cm  "); Serial.print(analogRead(irsensorLB)); Serial.print("          ");
     Serial.print("SF: "); Serial.print(DistanceIR(SF)); Serial.print("cm  "); Serial.print(analogRead(irsensorSF)); Serial.print("         ");
-    Serial.print("SB: "); Serial.print(DistanceIR(SB)); Serial.print("cm "); Serial.print(analogRead(irsensorSB)); Serial.println("");
-    Serial.print("YAW: "); Serial.print(DistanceIR(IrYawError(1)));
+    Serial.print("SB: "); Serial.print(DistanceIR(SB)); Serial.print("cm  "); Serial.print(analogRead(irsensorSB)); Serial.print("         ");
+    Serial.print("YAW: "); Serial.print(DistanceIR(IrYawError(1))); Serial.println("");
     
     delay(500);
   }
@@ -614,10 +614,10 @@ error = (DistanceIR(SF)-DistanceIR(SB));
 error = tan(error/DistanceShort);
 }
 else {//Range is 1 get value for/from long range sensors
-error = (DistanceIR(LF)-DistanceIR(LB));
-error = tan(error/DistanceLong);
+error = (DistanceIR(LF)/*DistanceIR(LB)*/);
+//error = tan(error/DistanceLong);
 }
 
-error = error * (180.0 / PI);//converts from rads to degrees
+//error = error * (180.0 / PI);//converts from rads to degrees
 return error;
 }
