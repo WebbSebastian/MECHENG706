@@ -131,6 +131,12 @@ serialRead = Serial.read(); // Read input
   }
 }
  
+  //CORNER-FINDER
+  //STRAIGHT-DRIVE - ASSESSED
+  //AREA COVERAGE
+  //STRAIGHT-DRIVE - ASSESSED
+
+
 
   if(IR_SERIAL){ //Serial controll for the IR sensor
     Serial.print("YAW: "); Serial.print(IrYawError(1)); Serial.print("         ");
@@ -581,10 +587,15 @@ void diagonal_downleft ()
 
   left_rear_motor.writeMicroseconds(1500);
   right_font_motor.writeMicroseconds(1500);
-}
+} 
 
 float DistanceIR(int range){//Could add the sonar sensor to this and just have one complete distance fuction
+
+/* Could have a bool for selecting front and side, 
+then use the limits of the sensors to decide between long/short */
 float distance = 0;
+
+
 if (range == LF){
   distance = analogRead(irsensorLF); // the read out is a signal from 0-1023 corresponding to 0-5v Short Front 
   distance = 13.16092 + (153.9881 - 13.16092)/(1 + pow((distance/78.4712), 2.3085)); // calculate the distance using the datasheet graph
