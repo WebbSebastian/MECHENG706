@@ -84,7 +84,10 @@ float DistanceShort = 21.55;//WILL NEED TO BE TUNED add float to setup for Dista
 #define GYRO_SERIAL
 
 int pos = 0;
-void setup(void)
+
+//Delay time between loops
+int T = 500;
+
 {
   turret_motor.attach(11);
   pinMode(LED_BUILTIN, OUTPUT);
@@ -123,20 +126,19 @@ void loop(void) //main loop
   };
 
   if (Serial.available()) // Check for input from terminal
-{
-serialRead = Serial.read(); // Read input
-  if (serialRead==49) // Check for flag to execute, 49 is ascii for 1, stop serial printing
   {
-    Serial.end(); // end the serial communication to get the sensor data
+  serialRead = Serial.read(); // Read input
+    if (serialRead==49) // Check for flag to execute, 49 is ascii for 1, stop serial printing
+    {
+      Serial.end(); // end the serial communication to get the sensor data
+    }
   }
-}
- 
+  
+
   //CORNER-FINDER
-  //STRAIGHT-DRIVE - ASSESSED
+  //STRAIGHT-DRIVE
   //AREA COVERAGE
-  //STRAIGHT-DRIVE - ASSESSED
-
-
+  //STRAIGHT-DRIVE
 
   if(IR_SERIAL){ //Serial controll for the IR sensor
     Serial.print("YAW: "); Serial.print(IrYawError(1)); Serial.print("         ");
@@ -146,7 +148,7 @@ serialRead = Serial.read(); // Read input
     Serial.print("SB: "); Serial.print(DistanceIR(SB)); Serial.print("cm  "); Serial.print(analogRead(irsensorSB)); Serial.println("");
     
     
-    delay(500);
+    delay(T);
   }
 
   
@@ -591,10 +593,7 @@ void diagonal_downleft ()
 
 float DistanceIR(int range){//Could add the sonar sensor to this and just have one complete distance fuction
 
-/* Could have a bool for selecting front and side, 
-then use the limits of the sensors to decide between long/short */
-float distance = 0;
-
+static float distance = 0;
 
 if (range == LF){
   distance = analogRead(irsensorLF); // the read out is a signal from 0-1023 corresponding to 0-5v Short Front 
@@ -612,6 +611,9 @@ else {
   distance = analogRead(irsensorSB); // the read out is a signal from 0-1023 corresponding to 0-5v Short Front 
   distance = 2428*pow(distance,-1); // calculate the distance using the datasheet graph
 }
+
+//Add a const to distance to make reading from centre of mass
+
 return distance;
 }
 
