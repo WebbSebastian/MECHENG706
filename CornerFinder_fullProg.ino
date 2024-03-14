@@ -34,12 +34,19 @@ enum STATE {
 
 //Refer to Shield Pinouts.jpg for pin locations
 
+//Inverse motor control pins
+const byte left_front = 51;
+const byte left_rear = 50;
+const byte right_rear = 47;
+const byte right_front = 46;
+
 //Default motor control pins
+/*
 const byte left_front = 47;
 const byte left_rear = 46;
 const byte right_rear = 51;
 const byte right_front = 50;
-
+*/
 
 //Default ultrasonic ranging sensor pins, these pins are defined my the Shield
 const int TRIG_PIN = 48;
@@ -74,19 +81,22 @@ float DistanceLong = 21.55;//WILL NEED TO BE TUNED add float to setup for Distan
 float DistanceShort = 21.55;//WILL NEED TO BE TUNED add float to setup for Distance between front and back short sensors in CM
 ////////////////////////////////////////////////////////////////////
 
+//threshold for sonar error
+float sonarThreshold = 2;
+
 //int irsensor = A3; //sensor is attached on pinA0
 //byte serialRead = 0; //for control serial communication
 //int signalADC = 0; // the read out signal in 0-1023 corresponding to 0-5v
 
 //Serial Controls
-#define IR_SERIAL 1
+#define IR_SERIAL 0
 #define US_SERIAL 1
 #define GYRO_SERIAL
 
 int pos = 0;
 
 //Delay time between loops
-int T = 500;
+int T = 50;
 
 void setup()
 {
@@ -134,7 +144,13 @@ void loop(void) //main loop
       Serial.end(); // end the serial communication to get the sensor data
     }
   }
-  
+  float SF_IR = DistanceIR(SF);
+  float SR_IR = DistanceIR(SB);
+  float S_IR = (SF_IR + SR_IR)/2;
+
+  float Sonar = HC_SR04_range();
+
+  FindCorner(Sonar, S_IR);
 
   //CORNER-FINDER
   //STRAIGHT-DRIVE
@@ -149,10 +165,10 @@ void loop(void) //main loop
     Serial.print("SB: "); Serial.print(DistanceIR(SB)); Serial.print("cm  "); Serial.print(analogRead(irsensorSB)); Serial.println("");
     
     
-    delay(T);
+    delay(500);
   }
 
-  
+  delay(T);
 }
 
 STATE initialising() {
@@ -324,7 +340,7 @@ boolean is_battery_voltage_OK()
 #endif
 
 #ifndef NO_HC-SR04
-void HC_SR04_range()
+float HC_SR04_range()
 {
   unsigned long t1;
   unsigned long t2;
@@ -358,7 +374,7 @@ void HC_SR04_range()
     pulse_width = t2 - t1;
     if ( pulse_width > (MAX_DIST + 1000) ) {
       SerialCom->println("HC-SR04: Out of range");
-      return;
+      return -1;
     }
   }
 
@@ -374,10 +390,12 @@ void HC_SR04_range()
   // Print out results
   if ( pulse_width > MAX_DIST ) {
     SerialCom->println("HC-SR04: Out of range");
+    return -1;
   } else {
     SerialCom->print("HC-SR04:");
     SerialCom->print(cm);
     SerialCom->println("cm");
+    return cm;
   }
 }
 #endif
@@ -500,6 +518,7 @@ void enable_motors()
   right_rear_motor.attach(right_rear);  // attaches the servo on pin right_rear to turn Vex Motor Controller 29 On
   right_font_motor.attach(right_front);  // attaches the servo on pin right_front to turn Vex Motor Controller 29 On
 }
+
 void stop() //Stop
 {
   left_font_motor.writeMicroseconds(1500);
@@ -634,4 +653,93 @@ float IrYawError(bool range)//Function calculates the yaw error in degrees of th
 
   error = error * (180.0 / PI);//converts from rads to degrees
   return error;
+}
+
+// Corner Finder
+void FindCorner(float sonarDistance, float shortIR){
+  static int runState = 0;
+  static int prevRunState = 0;
+  static float maxSonar = 0;
+  
+  int time45deg = 1500;
+
+  switch (runState){
+    //Reverse to wall
+    case 0:
+      static int numStationary = 0;
+      static int  prevSonar = 0;
+      reverse();
+
+      //keep count of how often sonar reading doesn't change
+      if (abs(sonarDistance - prevSonar) < sonarThreshold)
+        numStationary++;
+
+      prevSonar = sonarDistance;
+      
+      //if sonar detects stationary enough times (~2s), move to next state
+      if(numStationary > 200){
+        stop();
+
+        if(prevRunState == 4)
+          runState = 5;
+        else
+          runState++;
+
+        prevRunState = 0;
+      }
+
+      break;
+
+    //Detect which wall
+    case 1:
+      if (sonarDistance > 135)
+        runState++;
+      else
+        runState+=2;
+      
+      break;
+
+    //Short walls
+    case 2:
+      strafe_left();
+
+      if (shortIR < 15){
+        stop();
+        prevRunState = runState;
+        runState = 6;
+      }
+      break;
+
+    //Long walls pt. 1 (move forwards)
+    case 3:
+      static int sonarInit = sonarDistance;
+      
+      forward();
+
+      if ((sonarInit - sonarDistance) > 15){
+        stop();
+        prevRunState = runState;
+        runState++;
+      }
+      break;
+
+    //Long walls pt. 2 (rotate CCW)
+    case 4:
+      static int timeInitial = millis();
+      int timeElapsed = millis() - timeInitial;
+
+      if (timeElapsed >= time45deg){
+        //P controller to get 0 angle => exit to case 0
+        stop();
+      } else
+        ccw();
+
+      break;
+
+    //controller finished
+    case 6:
+      fast_flash_double_LED_builtin();
+      break;
+  };
+  
 }
