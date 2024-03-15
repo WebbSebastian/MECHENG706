@@ -80,10 +80,10 @@ int LFPos =0;
 int LBPos =0;
 int SFPos =0;
 int SBPos =0;
-float LFPre =0;
-float LBPre =0;
-float SFPre =0;
-float SBPre =0;
+static float LFPre =0;
+static float LBPre =0;
+static float SFPre =0;
+static float SBPre =0;
 float DistanceLong = 21.55;//WILL NEED TO BE TUNED add float to setup for Distance between front and back long sensors in CM
 float DistanceShort = 21.55;//WILL NEED TO BE TUNED add float to setup for Distance between front and back short sensors in CM
 ////////////////////////////////////////////////////////////////////
