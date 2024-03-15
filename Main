@@ -636,7 +636,7 @@ float IrYawError(bool range)//Function calculates the yaw error in degrees of th
   return error;
 }
 
-int SpeedCapped(float speed, int motor){
+int SpeedCapped(float speed){
   int adjustedSpeed = speed;
   if (speed > 500){
     adjustedSpeed = 500;
