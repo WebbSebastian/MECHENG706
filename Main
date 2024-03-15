@@ -1,3 +1,4 @@
+
 /*
   MechEng 706 Base Code
 
@@ -70,6 +71,19 @@ byte serialRead = 0; //for control serial communication
 #define LB 1 //Long back sensor
 #define SF 2 //Short front sensor
 #define SB 3 //Short rear sensor
+#define ArraySize 5 //array size of averaging filter
+static float LFArray[ArraySize] = {};
+static float LBArray[ArraySize] = {};
+static float SFArray[ArraySize] = {};
+static float SBArray[ArraySize] = {};
+int LFPos =0;
+int LBPos =0;
+int SFPos =0;
+int SBPos =0;
+float LFPre =0;
+float LBPre =0;
+float SFPre =0;
+float SBPre =0;
 float DistanceLong = 21.55;//WILL NEED TO BE TUNED add float to setup for Distance between front and back long sensors in CM
 float DistanceShort = 21.55;//WILL NEED TO BE TUNED add float to setup for Distance between front and back short sensors in CM
 ////////////////////////////////////////////////////////////////////
@@ -595,21 +609,97 @@ void diagonal_downleft ()
 float DistanceIR(int range){//Could add the sonar sensor to this and just have one complete distance fuction
 
   static float distance = 0;
-
+  
   if (range == LF){
     distance = analogRead(irsensorLF); // the read out is a signal from 0-1023 corresponding to 0-5v Short Front 
+    if (LFArray[0]==0){
+      for (int i = 0; i < ArraySize; i++){//COULD GET RID OF THIS AND REPLACE WITH READING EACH SENSOR A BUNCH TIMES BEFORE RUNNING CODE (BETTER COMPUTING)
+        LFArray[i]= range;
+      }
+      LFPre = 5*distance;
+      distance = range;
+    }
+    else { 
+      LFPre += (distance-LFArray[LFPos]);
+      LFArray[LFPos] = distance;
+      LFPos++;
+      if(LFPos >= ArraySize+1){
+        LFPos = 0;
+      }
+      /*for (int i = 0; i < ArraySize; i++){//BACKUP IF LFPre ISNT WORKING RIGHT TEST DIFFERENCE BETWEEN LOOP AND THAT MEYTHOD
+        distance += LFArray[i];
+      }*/
+      distance = LFPos/ArraySize;
+    }
     distance = 13.16092 + (153.9881 - 13.16092)/(1 + pow((distance/78.4712), 2.3085)); // calculate the distance using the datasheet graph
   }
   else if (range == LB){
-    distance = analogRead(irsensorLB); // the read out is a signal from 0-1023 corresponding to 0-5v Short Front 
+    distance = analogRead(irsensorLB); // the read out is a signal from 0-1023 corresponding to 0-5v Short Front
+    if (LBArray[0]==0){
+      for (int i = 0; i < ArraySize; i++){//COULD GET RID OF THIS AND REPLACE WITH READING EACH SENSOR A BUNCH TIMES BEFORE RUNNING CODE (BETTER COMPUTING)
+        LBArray[i]= range;
+      }
+      LBPre = 5*distance;
+      distance = range;
+    }
+    else { 
+      LBPre += (distance-LBArray[LBPos]);
+      LBArray[LBPos] = distance;
+      LBPos++;
+      if(LBPos >= ArraySize+1){
+        LBPos = 0;
+      }
+      /*for (int i = 0; i < ArraySize; i++){//BACKUP IF LBPre ISNT WORKING RIGHT TEST DIFFERENCE BETWEEN LOOP AND THAT MEYTHOD
+        distance += LBArray[i];
+      }*/
+      distance = LBPos/ArraySize;
+    }
     distance = 13.16092 + (153.9881 - 13.16092)/(1 + pow((distance/78.4712), 2.3085)); // calculate the distance using the datasheet graph
   }
   else if (range == SF){
     distance = analogRead(irsensorSF); // the read out is a signal from 0-1023 corresponding to 0-5v Short Front 
+    if (SFArray[0]==0){
+      for (int i = 0; i < ArraySize; i++){//COULD GET RID OF THIS AND REPLACE WITH READING EACH SENSOR A BUNCH TIMES BEFORE RUNNING CODE (BETTER COMPUTING)
+        SFArray[i]= range;
+      }
+      SFPre = 5*distance;
+      distance = range;
+    }
+    else { 
+      SFPre += (distance-SFArray[SFPos]);
+      SFArray[SFPos] = distance;
+      SFPos++;
+      if(SFPos >= ArraySize+1){
+        SFPos = 0;
+      }
+      /*for (int i = 0; i < ArraySize; i++){//BACKUP IF SFPre ISNT WORKING RIGHT TEST DIFFERENCE BETWEEN LOOP AND THAT MEYTHOD
+        distance += SFArray[i];
+      }*/
+      distance = SFPos/ArraySize;
+    }
     distance = 2428*pow(distance,-1); // calculate the distance using the datasheet graph
   }
   else {
     distance = analogRead(irsensorSB); // the read out is a signal from 0-1023 corresponding to 0-5v Short Front 
+    if (SBArray[0]==0){
+      for (int i = 0; i < ArraySize; i++){//COULD GET RID OF THIS AND REPLACE WITH READING EACH SENSOR A BUNCH TIMES BEFORE RUNNING CODE (BETTER COMPUTING)
+        SBArray[i]= range;
+      }
+      SBPre = 5*distance;
+      distance = range;
+    }
+    else { 
+      SBPre += (distance-SBArray[SBPos]);
+      SBArray[SBPos] = distance;
+      SBPos++;
+      if(SBPos >= ArraySize+1){
+        SBPos = 0;
+      }
+      /*for (int i = 0; i < ArraySize; i++){//BACKUP IF SBPre ISNT WORKING RIGHT TEST DIFFERENCE BETWEEN LOOP AND THAT MEYTHOD
+        distance += SBArray[i];
+      }*/
+      distance = SBPos/ArraySize;
+    }
     distance = 2428*pow(distance,-1); // calculate the distance using the datasheet graph
   }
 
