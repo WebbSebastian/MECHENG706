@@ -1,0 +1,99 @@
+int ArraySize = 5; array size of averaging filter
+  static float LF[ArraySize-1] = {};
+  static float LB[ArraySize-1] = {};
+  static float SF[ArraySize-1] = {};
+  static float SB[ArraySize-1] = {};
+
+
+
+
+
+
+
+float DistanceIR(int range){//Could add the sonar sensor to this and just have one complete distance fuction
+
+  static float distance = 0;
+  
+  if (range == LF){
+
+    distance = analogRead(irsensorLF); // the read out is a signal from 0-1023 corresponding to 0-5v Short Front 
+    if (LF[0]==0){
+      for (int i = 0, i < ArraySize, i++){//COULD GET RID OF This and replace with reading each sensor a bunch times before running code (better computing)
+        LF[i]= range;
+      }
+      distance == range;
+    }
+    else {   
+      for (int i = 0, i < ArraySize-1, i++){
+        LF[i]= LF[i+1];
+        distance += LF[i+1]
+      }
+      LF[ArraySize-1]=range;
+      distance += range;
+    }
+    distance = distance/ArraySize;
+    distance = 13.16092 + (153.9881 - 13.16092)/(1 + pow((distance/78.4712), 2.3085)); // calculate the distance using the datasheet graph
+  }
+  else if (range == LB){
+    distance = analogRead(irsensorLB); // the read out is a signal from 0-1023 corresponding to 0-5v Short Front
+    if (LB[0]==0){
+      for (int i = 0, i < ArraySize, i++){//COULD GET RID OF This and replace with reading each sensor a bunch times before running code (better computing)
+        LB[i]= range;
+      }
+      distance == range;
+    }
+    else {   
+      for (int i = 0, i < ArraySize-1, i++){
+        LB[i]= LB[i+1];
+        distance += LB[i+1]
+      }
+      LB[ArraySize-1]=range;
+      distance += range;
+    }
+    distance = distance/ArraySize;
+    distance = 13.16092 + (153.9881 - 13.16092)/(1 + pow((distance/78.4712), 2.3085)); // calculate the distance using the datasheet graph
+  }
+  else if (range == SF){
+    distance = analogRead(irsensorSF); // the read out is a signal from 0-1023 corresponding to 0-5v Short Front 
+    if (SF[0]==0){
+      for (int i = 0, i < ArraySize, i++){//COULD GET RID OF This and replace with reading each sensor a bunch times before running code (better computing)
+        SF[i]= range;
+      }
+      distance == range;
+    }
+    else {   
+      for (int i = 0, i < ArraySize-1, i++){
+        SF[i]= LF[i+1];
+        distance += SF[i+1]
+      }
+      SF[ArraySize-1]=range;
+      distance += range;
+    }
+    distance = distance/ArraySize;
+    distance = 2428*pow(distance,-1); // calculate the distance using the datasheet graph
+  }
+  else {
+    distance = analogRead(irsensorSB); // the read out is a signal from 0-1023 corresponding to 0-5v Short Front 
+    if (SB[0]==0){
+      for (int i = 0, i < ArraySize, i++){//COULD GET RID OF This and replace with reading each sensor a bunch times before running code (better computing)
+        SB[i]= range;
+      }
+      distance == range;
+    }
+    else {   
+      for (int i = 0, i < ArraySize-1, i++){
+        SB[i]= LF[i+1];
+        distance += SB[i+1]
+      }
+      SB[ArraySize-1]=range;
+      distance += range;
+    }
+    distance = distance/ArraySize;
+    distance = 2428*pow(distance,-1); // calculate the distance using the datasheet graph
+  }
+
+  //Add a const to distance to make reading from centre of mass
+  distance += 6.35;
+
+  return distance;
+}
