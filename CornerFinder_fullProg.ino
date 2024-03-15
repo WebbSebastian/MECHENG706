@@ -83,6 +83,7 @@ float DistanceShort = 21.55;//WILL NEED TO BE TUNED add float to setup for Dista
 
 //threshold for sonar error
 float sonarThreshold = 2;
+float yawThreshold = 5;
 
 //int irsensor = A3; //sensor is attached on pinA0
 //byte serialRead = 0; //for control serial communication
@@ -148,9 +149,11 @@ void loop(void) //main loop
   float SR_IR = DistanceIR(SB);
   float S_IR = (SF_IR + SR_IR)/2;
 
+  float yaw_IR = IrYawError(0);
+
   float Sonar = HC_SR04_range();
 
-  FindCorner(Sonar, S_IR);
+  FindCorner(Sonar, S_IR, yaw_IR);
 
   //CORNER-FINDER
   //STRAIGHT-DRIVE
@@ -360,7 +363,7 @@ float HC_SR04_range()
     pulse_width = t2 - t1;
     if ( pulse_width > (MAX_DIST + 1000)) {
       SerialCom->println("HC-SR04: NOT found");
-      return;
+      return -2;
     }
   }
 
@@ -655,13 +658,27 @@ float IrYawError(bool range)//Function calculates the yaw error in degrees of th
   return error;
 }
 
+void straight_align (float distance, float yaw_angle, float edgeDist)
+{
+  float angleError = 20* yaw_angle;
+  float edgeError = 20 * (edgeDist - distance);
+
+  left_font_motor.writeMicroseconds(1500 + angleError + edgeError);
+  left_rear_motor.writeMicroseconds(1500 + angleError - edgeError);
+  right_rear_motor.writeMicroseconds(1500 + angleError - edgeError);
+  right_font_motor.writeMicroseconds(1500 + angleError + edgeError);
+
+}
+
 // Corner Finder
-void FindCorner(float sonarDistance, float shortIR){
+void FindCorner(float sonarDistance, float shortIR, float yawAngle){
   static int runState = 0;
   static int prevRunState = 0;
   static float maxSonar = 0;
+
+  float timeExitInitial = 0;
   
-  int time45deg = 1500;
+  float time45deg = 1500.0 * (100.0/(float)speed_val);
 
   switch (runState){
     //Reverse to wall
@@ -706,7 +723,7 @@ void FindCorner(float sonarDistance, float shortIR){
       if (shortIR < 15){
         stop();
         prevRunState = runState;
-        runState = 6;
+        runState = 5;
       }
       break;
 
@@ -728,18 +745,35 @@ void FindCorner(float sonarDistance, float shortIR){
       static int timeInitial = millis();
       int timeElapsed = millis() - timeInitial;
 
+      static bool withinYawThresh = 0;
+
       if (timeElapsed >= time45deg){
-        //P controller to get 0 angle => exit to case 0
-        stop();
+        straight_align(shortIR, yawAngle, 15);
       } else
         ccw();
 
+      //Determine exit condition for straight_alight controller
+      if (yawAngle < yawThreshold){
+        //if yaw angle has been within threshold for 1.5s, finish case
+        if(withinYawThresh && ((millis() - timeExitInitial) > 150)){
+          stop();
+          runState = 0;
+          prevRunState = 4;          
+        }
+        
+        //if prev loop was not within threshold & current loop is, start a timer
+        if (!withinYawThresh){
+          timeExitInitial = millis();
+          withinYawThresh = 1;
+        }
+        //store whether this loop was within the yaw threshold in a bool
+      } else
+        withinYawThresh = 0;
       break;
 
     //controller finished
-    case 6:
+    case 5:
       fast_flash_double_LED_builtin();
       break;
   };
-  
 }

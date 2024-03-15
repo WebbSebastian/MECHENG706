@@ -8,18 +8,21 @@ void strafe_left();
 float millis();
 float abs(float input);
 void fast_flash_double_LED_builtin();
-
+void straight_align(float input1, float input2, float input3);
 
 float sonarThreshold = 2;
+float yawThreshold = 5;
+float speed_val;
 
 // Corner Finder
-// Corner Finder
-void FindCorner(float sonarDistance, float shortIR){
+void FindCorner(float sonarDistance, float shortIR, float yawAngle){
   static int runState = 0;
   static int prevRunState = 0;
   static float maxSonar = 0;
+
+  float timeExitInitial = 0;
   
-  int time45deg = 1500;
+  float time45deg = 1500.0 * (100.0/(float)speed_val);
 
   switch (runState){
     //Reverse to wall
@@ -64,7 +67,7 @@ void FindCorner(float sonarDistance, float shortIR){
       if (shortIR < 15){
         stop();
         prevRunState = runState;
-        runState = 6;
+        runState = 5;
       }
       break;
 
@@ -86,20 +89,37 @@ void FindCorner(float sonarDistance, float shortIR){
       static int timeInitial = millis();
       int timeElapsed = millis() - timeInitial;
 
+      static bool withinYawThresh = 0;
+
       if (timeElapsed >= time45deg){
-        //P controller to get 0 angle => exit to case 0
-        stop();
+        straight_align(shortIR, yawAngle, 15);
       } else
         ccw();
 
+      //Determine exit condition for straight_alight controller
+      if (yawAngle < yawThreshold){
+        //if yaw angle has been within threshold for 1.5s, finish case
+        if(withinYawThresh && ((millis() - timeExitInitial) > 150)){
+          stop();
+          runState = 0;
+          prevRunState = 4;          
+        }
+        
+        //if prev loop was not within threshold & current loop is, start a timer
+        if (!withinYawThresh){
+          timeExitInitial = millis();
+          withinYawThresh = 1;
+        }
+        //store whether this loop was within the yaw threshold in a bool
+      } else
+        withinYawThresh = 0;
       break;
 
     //controller finished
-    case 6:
+    case 5:
       fast_flash_double_LED_builtin();
       break;
   };
-  
 }
 
 
