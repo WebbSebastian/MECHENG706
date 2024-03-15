@@ -124,7 +124,7 @@ void loop(void) //main loop
     case STOPPED: //Stop of Lipo Battery voltage is too low, to protect Battery
       machine_state =  stopped();
       break;
-  };
+  }
 
   if (Serial.available()) // Check for input from terminal
   {
