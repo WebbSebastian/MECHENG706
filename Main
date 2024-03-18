@@ -72,18 +72,18 @@ byte serialRead = 0; //for control serial communication
 #define SF 2 //Short front sensor
 #define SB 3 //Short rear sensor
 #define ArraySize 5 //array size of averaging filter
-static float LFArray[ArraySize] = {};
-static float LBArray[ArraySize] = {};
-static float SFArray[ArraySize] = {};
-static float SBArray[ArraySize] = {};
+int LFArray[ArraySize] = {};
+int LBArray[ArraySize] = {};
+int SFArray[ArraySize] = {};
+int SBArray[ArraySize] = {};
 int LFPos =0;
 int LBPos =0;
 int SFPos =0;
 int SBPos =0;
-static float LFPre =0;
-static float LBPre =0;
-static float SFPre =0;
-static float SBPre =0;
+int LFPre =0;
+int LBPre =0;
+int SFPre =0;
+int SBPre =0;
 float DistanceLong = 21.55;//WILL NEED TO BE TUNED add float to setup for Distance between front and back long sensors in CM
 float DistanceShort = 21.55;//WILL NEED TO BE TUNED add float to setup for Distance between front and back short sensors in CM
 ////////////////////////////////////////////////////////////////////
@@ -122,22 +122,22 @@ void setup()
 
   Serial.begin(115200); // start serial communication
   
-   for (int i = 0; i < ArraySize; i++){//COULD GET RID OF THIS AND REPLACE WITH READING EACH SENSOR A BUNCH TIMES BEFORE RUNNING CODE (BETTER COMPUTING)
-        int range = analogRead(irsensorLF);
-        LFArray[i]= range;
-    }
-    for (int i = 0; i < ArraySize; i++){//COULD GET RID OF THIS AND REPLACE WITH READING EACH SENSOR A BUNCH TIMES BEFORE RUNNING CODE (BETTER COMPUTING)
-         int range = analogRead(irsensorLB);
-        LBArray[i]= range;
-    }
-    for (int i = 0; i < ArraySize; i++){//COULD GET RID OF THIS AND REPLACE WITH READING EACH SENSOR A BUNCH TIMES BEFORE RUNNING CODE (BETTER COMPUTING)
-         int range = analogRead(irsensorSF);
-        SFArray[i]= range;
-    }
-    for (int i = 0; i < ArraySize; i++){//COULD GET RID OF THIS AND REPLACE WITH READING EACH SENSOR A BUNCH TIMES BEFORE RUNNING CODE (BETTER COMPUTING)
-         int range = analogRead(irsensorSB);
-        SBArray[i]= range;
-    }
+  for (int i = 0; i < ArraySize; i++){//COULD GET RID OF THIS AND REPLACE WITH READING EACH SENSOR A BUNCH TIMES BEFORE RUNNING CODE (BETTER COMPUTING)
+    LFArray[i]= analogRead(irsensorLF);
+     LFPre += LFArray[i];
+   }
+  for (int i = 0; i < ArraySize; i++){//COULD GET RID OF THIS AND REPLACE WITH READING EACH SENSOR A BUNCH TIMES BEFORE RUNNING CODE (BETTER COMPUTING)
+    LBArray[i]= analogRead(irsensorLB);
+    LBPre += LBArray[i];
+  }
+  for (int i = 0; i < ArraySize; i++){//COULD GET RID OF THIS AND REPLACE WITH READING EACH SENSOR A BUNCH TIMES BEFORE RUNNING CODE (BETTER COMPUTING)
+    SFArray[i]= analogRead(irsensorSF);
+    SFPre += SFArray[i];
+  }
+  for (int i = 0; i < ArraySize; i++){//COULD GET RID OF THIS AND REPLACE WITH READING EACH SENSOR A BUNCH TIMES BEFORE RUNNING CODE (BETTER COMPUTING)
+    SBArray[i]= analogRead(irsensorSB);
+    SBPre += SBArray[i];
+  }
 
 }
 
@@ -632,7 +632,7 @@ float DistanceIR(int range){//Could add the sonar sensor to this and just have o
     LFPre += (distance-LFArray[LFPos]);
     LFArray[LFPos] = distance;
     LFPos++;
-    if(LFPos >= ArraySize+1){
+    if(LFPos >= ArraySize){
       LFPos = 0;
     }
       /*for (int i = 0; i < ArraySize; i++){//BACKUP IF LFPre ISNT WORKING RIGHT TEST DIFFERENCE BETWEEN LOOP AND THAT MEYTHOD
@@ -646,7 +646,7 @@ float DistanceIR(int range){//Could add the sonar sensor to this and just have o
     LBPre += (distance-LBArray[LBPos]);
     LBArray[LBPos] = distance;
     LBPos++;
-    if(LBPos >= ArraySize+1){
+    if(LBPos >= ArraySize){
       LBPos = 0;
     }
     distance = LBPre/ArraySize;
@@ -657,7 +657,7 @@ float DistanceIR(int range){//Could add the sonar sensor to this and just have o
     SFPre += (distance-SFArray[SFPos]);
     SFArray[SFPos] = distance;
     SFPos++;
-    if(SFPos >= ArraySize+1){
+    if(SFPos >= ArraySize){
       SFPos = 0;
     }
     distance = SFPre/ArraySize;
@@ -668,7 +668,7 @@ float DistanceIR(int range){//Could add the sonar sensor to this and just have o
     SBPre += (distance-SBArray[SBPos]);
     SBArray[SBPos] = distance;
     SBPos++;
-    if(SBPos >= ArraySize+1){
+    if(SBPos >= ArraySize){
       SBPos = 0;
     }
     distance = SBPre/ArraySize;
