@@ -118,6 +118,7 @@ Sensor rearRight(irsensorLS,false,false,false);
 #define US_SERIAL 0
 #define GYRO_SERIAL
 
+int x = 1;
 int pos = 0;
 void setup(void)
 {
@@ -138,7 +139,7 @@ void setup(void)
   delay(1000); //settling time but no really needed
 
   Serial.begin(115200); // start serial communication
-
+  
 }
 
 void loop(void) //main loop
@@ -179,11 +180,14 @@ void loop(void) //main loop
 
 
   //straight_drive(distanceLS, distanceLF, distanceUS);
+  if(x == 1){
   driveAtDistFromWall(frontLeft, rearLeft, 20, 5);
-  strafe_right();
-  _delay_ms(1500);
-  stop();
-  driveAtDistFromWall(frontLeft, rearLeft, 20, 160);
+  //_delay_ms(1500);
+  //moveToDistFromWall(frontLeft, rearLeft,30);
+  //_delay_ms(1500);
+  //driveAtDistFromWall(frontLeft, rearLeft, 30, 100);
+  }
+  x = 0;
 
 
 
@@ -525,20 +529,82 @@ void driveAtDistFromWall(Sensor frontSensor, Sensor rearSensor, float distFromWa
   if(frontSensor.isSensorLeft() != rearSensor.isSensorLeft()){// sensors must be from same side
     return;
   } 
+  int Ka = 15;
+  int Kd = 15;
+  int Ks = 10;
+
+  int withinRange = 0;
+
   float sonarError = HC_SR04_range() - sonarDesired;
   float angleError = 0;
   float distError = 0;
-  int direction = (sonarError > 0) ? 1 : -1; 
-  int leftOrRight = frontSensor.isSensorLeft() ? 1 : -1;
-  while(abs(sonarError)>5){
-    angleError = getSensorDist(frontSensor) - getSensorDist(rearSensor);
-    distError = ((getSensorDist(frontSensor)+getSensorDist(rearSensor))/2) - distFromWall;
-    right_rear_motor.writeMicroseconds(1500 + direction*speed_val + leftOrRight*(angleError - edgeError));
-    right_font_motor.writeMicroseconds(1500 + direction*speed_val + leftOrRight*(angleError + edgeError));
-    left_font_motor.writeMicroseconds(1500 - direction*speed_val + leftOrRight*(angleError + edgeError));
-    left_rear_motor.writeMicroseconds(1500 - direction*speed_val + leftOrRight*(angleError - edgeError));
+  int direction = (sonarError > 0) ? -1 : 1; 
+  int leftOrRight = frontSensor.isSensorLeft() ? -1 : 1;
+  int maxSpeedVal = 0;
+  int speedVal = 200;
+  while(withinRange < 10){
+
+    angleError = (getSensorDist(frontSensor) - getSensorDist(rearSensor));
+    distError = (((getSensorDist(frontSensor) + getSensorDist(rearSensor))/2) - distFromWall);
+    right_rear_motor.writeMicroseconds(1500 - SpeedCap(Ks*sonarError,300) + leftOrRight*(SpeedCap(Ka*angleError,100) - SpeedCap(Kd*distError,100)));
+    right_font_motor.writeMicroseconds(1500 - SpeedCap(Ks*sonarError,300) + leftOrRight*(SpeedCap(Ka*angleError,100) + SpeedCap(Kd*distError,100)));
+    left_font_motor.writeMicroseconds(1500 + SpeedCap(Ks*sonarError,300) + leftOrRight*(SpeedCap(Ka*angleError,100) + SpeedCap(Kd*distError,100)));
+    left_rear_motor.writeMicroseconds(1500 + SpeedCap(Ks*sonarError,300) + leftOrRight*(SpeedCap(Ka*angleError,100) - SpeedCap(Kd*distError,100)));
     sonarError = HC_SR04_range() - sonarDesired;
-    direction = (sonarError > 0) ? 1 : -1; 
+    direction = (sonarError > 0) ? -1 : 1; 
+    if(abs(sonarError) < 2){
+      withinRange++;
+    } else {
+      withinRange = 0;
+    }
   }
   stop();
 } 
+int SpeedCap(float speed,int maxSpeed){
+  int adjustedSpeed = speed;
+  if (speed > maxSpeed){
+    adjustedSpeed = maxSpeed;
+  }
+  else if (speed < -maxSpeed){
+    adjustedSpeed = -maxSpeed;
+  }
+
+  return adjustedSpeed;
+}
+
+// void moveToDistFromWall(Sensor frontSensor, Sensor rearSensor, float distFromWall){
+//   if(!frontSensor.isSensorFront()){
+//     return;
+//   }
+//   if(rearSensor.isSensorFront()){
+//     return;
+//   }
+//   if(frontSensor.isSensorLeft() != rearSensor.isSensorLeft()){// sensors must be from same side
+//     return;
+//   } 
+//   int Ka = 5;
+//   int Kd = 5;
+
+//   int withinRange = 0;
+
+//   //float sonarError = HC_SR04_range() - sonarDesired;
+//   float angleError = 0;
+//   float distError = 0;
+//   //int direction = (sonarError > 0) ? -1 : 1; 
+//   int leftOrRight = frontSensor.isSensorLeft() ? -1 : 1;
+//   while(withinRange < 10){
+//     angleError = Ka*(getSensorDist(frontSensor) - getSensorDist(rearSensor));
+//     distError = Kd*(((getSensorDist(frontSensor)+getSensorDist(rearSensor))/2) - distFromWall);
+//     right_rear_motor.writeMicroseconds(1500 /*+ direction*speed_val*/ + leftOrRight*(angleError - distError));
+//     right_font_motor.writeMicroseconds(1500 /*+ direction*speed_val*/ + leftOrRight*(angleError + distError));
+//     left_font_motor.writeMicroseconds(1500 /*- direction*speed_val*/ + leftOrRight*(angleError + distError));
+//     left_rear_motor.writeMicroseconds(1500 /*- direction*speed_val*/ + leftOrRight*(angleError - distError));
+//     //sonarError = HC_SR04_range() - sonarDesired;
+//     //direction = (sonarError > 0) ? -1 : 1; 
+//     if(distError < 5){
+//       withinRange++;
+//     } else {
+//       withinRange = 0;
+//     }
+//   }
+// }
