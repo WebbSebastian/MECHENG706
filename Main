@@ -707,7 +707,7 @@ int SpeedCapped(float speed){
     adjustedSpeed = -500;
   }
   
-  adjustedSpeed = adjustedSpeed +1500;
+  adjustedSpeed += 1500;
   
   return adjustedSpeed;
 }
