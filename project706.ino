@@ -530,28 +530,36 @@ void driveAtDistFromWall(Sensor frontSensor, Sensor rearSensor, float distFromWa
     return;
   } 
   int Ka = 15;
-  int Kd = 15;
+  int Kd = 30;
   int Ks = 10;
-
+  float KsI = 0.005; 
   int withinRange = 0;
 
-  float sonarError = HC_SR04_range() - sonarDesired;
+  float sonarError = 0;
+  int sonarErrorAndIntegral = 0;
   float angleError = 0;
   float distError = 0;
   int direction = (sonarError > 0) ? -1 : 1; 
   int leftOrRight = frontSensor.isSensorLeft() ? -1 : 1;
   int maxSpeedVal = 0;
-  int speedVal = 200;
+  int sonarIntegral = 0;
+  
   while(withinRange < 10){
 
-    angleError = (getSensorDist(frontSensor) - getSensorDist(rearSensor));
-    distError = (((getSensorDist(frontSensor) + getSensorDist(rearSensor))/2) - distFromWall);
-    right_rear_motor.writeMicroseconds(1500 - SpeedCap(Ks*sonarError,300) + leftOrRight*(SpeedCap(Ka*angleError,100) - SpeedCap(Kd*distError,100)));
-    right_font_motor.writeMicroseconds(1500 - SpeedCap(Ks*sonarError,300) + leftOrRight*(SpeedCap(Ka*angleError,100) + SpeedCap(Kd*distError,100)));
-    left_font_motor.writeMicroseconds(1500 + SpeedCap(Ks*sonarError,300) + leftOrRight*(SpeedCap(Ka*angleError,100) + SpeedCap(Kd*distError,100)));
-    left_rear_motor.writeMicroseconds(1500 + SpeedCap(Ks*sonarError,300) + leftOrRight*(SpeedCap(Ka*angleError,100) - SpeedCap(Kd*distError,100)));
-    sonarError = HC_SR04_range() - sonarDesired;
-    direction = (sonarError > 0) ? -1 : 1; 
+    angleError = SpeedCap(Ka*(getSensorDist(frontSensor) - getSensorDist(rearSensor)),200);
+    distError = SpeedCap(Kd*(((getSensorDist(frontSensor) + getSensorDist(rearSensor))/2) - distFromWall),200);
+    sonarError = SpeedCap(Ks*(HC_SR04_range() - sonarDesired),500 - abs(angleError) - abs(distError));
+    if (abs(HC_SR04_range() - sonarDesired)< 10){
+      sonarIntegral += sonarError;
+    } else {
+      sonarIntegral = 0;
+    }
+    sonarErrorAndIntegral = SpeedCap(sonarError + KsI*sonarIntegral , 500 - abs(angleError) - abs(distError));
+    //direction = (sonarError > 0) ? -1 : 1; 
+    right_rear_motor.writeMicroseconds(1500 + sonarErrorAndIntegral + leftOrRight*(angleError - distError));
+    right_font_motor.writeMicroseconds(1500 + sonarErrorAndIntegral + leftOrRight*(angleError + distError));
+    left_font_motor.writeMicroseconds(1500 - sonarErrorAndIntegral + leftOrRight*(angleError + distError));
+    left_rear_motor.writeMicroseconds(1500 - sonarErrorAndIntegral + leftOrRight*(angleError - distError));
     if(abs(sonarError) < 2){
       withinRange++;
     } else {
