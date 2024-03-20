@@ -529,42 +529,66 @@ void driveAtDistFromWall(Sensor frontSensor, Sensor rearSensor, float distFromWa
   if(frontSensor.isSensorLeft() != rearSensor.isSensorLeft()){// sensors must be from same side
     return;
   } 
+  //Proportional gains
   int Ka = 15;
   int Kd = 30;
   int Ks = 10;
-  float KsI = 0.005; 
-  int withinRange = 0;
 
-  float sonarError = 0;
-  int sonarErrorAndIntegral = 0;
-  float angleError = 0;
-  float distError = 0;
-  int direction = (sonarError > 0) ? -1 : 1; 
+  //integral gains
+  float KaI = 0.001;
+  float KdI = 0.001;
+  float KsI = 0.005;
+  
+  // variable for exit condition
+  int withinRange = 0;
+  
+  //current errors
+  float currentAngleError = 0;
+  float currentDistError = 0;
+  float currentSonarError = 0;
+
+  //error integrals
+  float angleErrorIntegral = 0;
+  float distErrorIntegral = 0;
+  float sonarErrorIntegral = 0;
+
+  //final Error coefficients
+  int angleError = 0;
+  int distError = 0; 
+  int sonarError = 0;
+
+  //Variable for kinematic calculation
   int leftOrRight = frontSensor.isSensorLeft() ? -1 : 1;
-  int maxSpeedVal = 0;
-  int sonarIntegral = 0;
   
   while(withinRange < 10){
+    currentAngleError = getSensorDist(frontSensor) - getSensorDist(rearSensor);
+    currentDistError = (getSensorDist(frontSensor) + getSensorDist(rearSensor))/2) - distFromWall;
+    currentSonarError = HC_SR04_range() - sonarDesired;
 
-    angleError = SpeedCap(Ka*(getSensorDist(frontSensor) - getSensorDist(rearSensor)),200);
-    distError = SpeedCap(Kd*(((getSensorDist(frontSensor) + getSensorDist(rearSensor))/2) - distFromWall),200);
-    sonarError = SpeedCap(Ks*(HC_SR04_range() - sonarDesired),500 - abs(angleError) - abs(distError));
-    if (abs(HC_SR04_range() - sonarDesired)< 10){
-      sonarIntegral += sonarError;
+
+    angleErrorIntegral += currentAngleError;
+    distErrorIntegral += currentDistError;
+    if (abs(currentSonarError)< 10){
+      sonarErrorIntegral += currentSonarError;
     } else {
-      sonarIntegral = 0;
+      sonarErrorIntegral = 0;
     }
-    sonarErrorAndIntegral = SpeedCap(sonarError + KsI*sonarIntegral , 500 - abs(angleError) - abs(distError));
-    //direction = (sonarError > 0) ? -1 : 1; 
-    right_rear_motor.writeMicroseconds(1500 + sonarErrorAndIntegral + leftOrRight*(angleError - distError));
-    right_font_motor.writeMicroseconds(1500 + sonarErrorAndIntegral + leftOrRight*(angleError + distError));
-    left_font_motor.writeMicroseconds(1500 - sonarErrorAndIntegral + leftOrRight*(angleError + distError));
-    left_rear_motor.writeMicroseconds(1500 - sonarErrorAndIntegral + leftOrRight*(angleError - distError));
+
+    distError = SpeedCap(Kd*currentDistError + KdI*distErrorIntegral,500);
+    angleError = SpeedCap(Ka*(currentAngleError) + KaI*angleErrorIntegral,500 - abs(distError));
+    sonarError = SpeedCap(Ks*currentSonarError + KsI*sonarErrorIntegral,500 - abs(angleError) - abs(distError));
+
+    right_rear_motor.writeMicroseconds(1500 + sonarError + leftOrRight*(angleError - distError));
+    right_font_motor.writeMicroseconds(1500 + sonarError + leftOrRight*(angleError + distError));
+    left_font_motor.writeMicroseconds(1500 - sonarError + leftOrRight*(angleError + distError));
+    left_rear_motor.writeMicroseconds(1500 - sonarError + leftOrRight*(angleError - distError));
+
     if(abs(sonarError) < 2){
       withinRange++;
     } else {
       withinRange = 0;
     }
+    
   }
   stop();
 } 
