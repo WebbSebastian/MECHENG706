@@ -1,3 +1,5 @@
+#include <SoftwareSerial.h>
+
 //placeholder functions to remove intellisense errors
 void stop();
 void reverse();
@@ -14,11 +16,20 @@ float sonarThreshold = 2;
 float yawThreshold = 5;
 float speed_val;
 
+// Serial Data input pin
+#define BLUETOOTH_RX 10
+// Serial Data output pin
+#define BLUETOOTH_TX 11
+
+// Bluetooth Serial Port
+#define OUTPUTBLUETOOTHMONITOR 1
+
+SoftwareSerial BluetoothSerial(BLUETOOTH_RX, BLUETOOTH_TX);
+
 // Corner Finder
 void FindCorner(float sonarDistance, float shortIR, float yawAngle){
   static int runState = 0;
   static int prevRunState = 0;
-  static float maxSonar = 0;
 
   float timeExitInitial = 0;
   
@@ -120,8 +131,26 @@ void FindCorner(float sonarDistance, float shortIR, float yawAngle){
       fast_flash_double_LED_builtin();
       break;
   };
-}
 
+  //debugging
+  BluetoothSerial.print("State: ");
+  BluetoothSerial.println(runState, DEC);
+
+  BluetoothSerial.print("Ultrasonic: ");
+  BluetoothSerial.print(sonarDistance, DEC);
+  BluetoothSerial.println(" cm");
+
+  BluetoothSerial.print("IR: ");
+  BluetoothSerial.print(shortIR, DEC);
+  BluetoothSerial.println(" cm");
+
+  BluetoothSerial.print("Yaw: ");
+  BluetoothSerial.print(yawAngle, DEC);
+  BluetoothSerial.println(" deg");
+
+  BluetoothSerial.println(" ");
+
+}
 
 //redundant code to align the corner directly ahead
 /*
