@@ -21,7 +21,7 @@
 */
 #include <Servo.h>  //Need for Servo pulse output
 
-#define NO_READ_GYRO  //Uncomment of GYRO is not attached.   
+//#define NO_READ_GYRO  //Uncomment of GYRO is not attached.   
 //#define NO_HC-SR04 //Uncomment of HC-SR04 ultrasonic ranging sensor is not attached.
 //#define NO_BATTERY_V_OK //Uncomment of BATTERY_V_OK if you do not care about battery damage.
 
@@ -83,12 +83,32 @@ float ADCsignalLF = 0; // the read out signal in 0-1023 corresponding to 0-5v
 float ADCsignalLS = 0; // the read out signal in 0-1023 corresponding to 0-5v
 ////////////////////////////////////////////////////////////////////
 
+//test variables
+float maxDist = 0;
+float maxAngle = 0;
+int has180 = 0;
+int rotating = 1;
+int align = 0;
+int corner = 0;
+//float currentAngle = 0;
+
+int sensorPin = A2;         //define the pin that gyro is connected 
+int T = 100;                // T is the time of one loop, 0.1 sec
+int sensorValue = 0;        // read out value of sensor 
+float gyroSupplyVoltage = 5;    // supply voltage for gyro
+float gyroZeroVoltage = 512;  // the value of voltage when gyro is zero 
+float gyroSensitivity = 0.007;  // gyro sensitivity unit is (mv/degree/second) get from datasheet 
+float rotationThreshold = 1.5;  // because of gyro drifting, defining rotation angular velocity less 
+                                // than this value will be ignored
+float gyroRate = 0;         // read out value of sensor in voltage 
+float current_Angle = 0;     // current angle calculated by angular velocity integral on 
+
 //int irsensor = A3; //sensor is attached on pinA0
 //byte serialRead = 0; //for control serial communication
 //int signalADC = 0; // the read out signal in 0-1023 corresponding to 0-5v
 
 //Serial Controls
-#define IR_SERIAL 1
+#define IR_SERIAL 0
 #define US_SERIAL 0
 #define GYRO_SERIAL
 
@@ -139,6 +159,28 @@ void loop(void) //main loop
       Serial.end(); // end the serial communication to get the sensor data
     }
   }
+
+  // convert the 0-1023 signal to 0-5v
+  gyroRate = (analogRead(sensorPin)*gyroSupplyVoltage)/1023; 
+  // find the voltage offset the value of voltage when gyro is zero (still)
+  gyroRate -= (gyroZeroVoltage/1023 * gyroSupplyVoltage); 
+  // read out voltage divided the gyro sensitivity to calculate the angular velocity 
+  float angularVelocity = gyroRate/ gyroSensitivity; // from Data Sheet, gyroSensitivity is 0.007 V/dps
+    
+  // if the angular velocity is less than the threshold, ignore it
+  if (angularVelocity >= rotationThreshold || angularVelocity <= -rotationThreshold)
+  {
+      // we are running a loop in T (of T/1000 second).
+      float angleChange = angularVelocity/(1000/T);
+      current_Angle += angleChange; 
+  }
+    
+  // keep the angle between 0-360
+  if (current_Angle < 0)
+  {current_Angle += 360;}   
+  else if (current_Angle > 359)
+  {current_Angle -= 360;}
+
   ADCsignalSF = analogRead(irsensorSF); // the read out is a signal from 0-1023 corresponding to 0-5v Short Front 
   ADCsignalSS = analogRead(irsensorSS); // the read out is a signal from 0-1023 corresponding to 0-5v Short Side
   ADCsignalLF = analogRead(irsensorLF); // the read out is a signal from 0-1023 corresponding to 0-5v Long Front 
@@ -155,9 +197,70 @@ void loop(void) //main loop
   int dir = 1;
 
   ////////////////////////// If driving forwards, LS then LF. If driving backwards, LF then LS //////////////////////////////////
-  straight_drive(distanceLF, distanceLS, distanceUS, dir, edgeDist); 
+  //straight_drive(distanceLF, distanceLS, distanceUS, dir, edgeDist); 
   //straight_drive(distanceLS, distanceLF, distanceUS, dir, edgeDist);
   //straight_align(distanceLS, distanceLF, edgeDist);
+
+
+/*
+  if (rotating)
+  {
+    rotate();
+    if (distanceUS >= maxDist)
+    {
+      maxDist = distanceUS;
+      maxAngle = current_Angle;
+      //maxIR = 0;
+    }
+  }
+
+  if (current_Angle >= 180)
+  {
+    if(current_Angle <= 270)
+    {
+      has180 = 1;
+    }
+  }
+
+  if (current_Angle <= 30)
+  {
+    if (has180)
+    {
+      rotating = 0;
+      align = 1;
+    }
+  }
+
+  if(align)
+  {
+    rotate();
+    if (current_Angle >= (maxAngle - 5))
+    {
+      if (current_Angle <= (maxAngle + 5))
+      {
+        align = 0;
+        corner = 1;
+      }
+    }
+  }
+
+  if(corner)
+  {
+    corner_align(distanceLS, distanceLF, distanceUS, 15);
+  }
+  */
+
+  corner_align(distanceLS, distanceLF, distanceUS, 15);
+  
+  
+
+  //Serial.print(angularVelocity);
+  //Serial.print(" ");
+  //Serial.println(current_Angle);
+  //Serial.print(" ");
+  //Serial.print(analogRead(sensorPin));
+
+  delay(100);
 
 
   if(IR_SERIAL){ //Serial controll for the IR sensor
@@ -612,6 +715,23 @@ void diagonal_downleft ()
   right_font_motor.writeMicroseconds(1500);
 }
 
+void rotate ()
+{
+  left_font_motor.writeMicroseconds(1500 + speed_val);
+  left_rear_motor.writeMicroseconds(1500 + speed_val);
+  right_rear_motor.writeMicroseconds(1500 + speed_val);
+  right_font_motor.writeMicroseconds(1500 + speed_val);
+}
+
+void lateral_move (float distanceLS, float distanceLF, float edgeDist, float targetDist, float direction)
+{
+  float edgeError = targetDist - edgeDist;
+  left_font_motor.writeMicroseconds(1500 + direction * edgeError);
+  left_rear_motor.writeMicroseconds(1500 - direction * edgeError);
+  right_rear_motor.writeMicroseconds(1500 - direction * edgeError);
+  right_font_motor.writeMicroseconds(1500 + direction * edgeError);
+}
+
 void straight_align (float distanceLS, float distanceLF, float edgeDist)
 {
   float angleError = 20 * (distanceLS - distanceLF);
@@ -623,12 +743,25 @@ void straight_align (float distanceLS, float distanceLF, float edgeDist)
   right_font_motor.writeMicroseconds(1500 + angleError + edgeError);
 }
 
+void corner_align (float distanceLS, float distanceLF, float distanceUS, float edgeDist)
+{
+  float angleError = 20 * (distanceLS - distanceLF);
+  float edgeError = 20 * (edgeDist - distanceLF);
+  float distError = 20 * (198 - (24 + edgeDist));
+  
+  left_font_motor.writeMicroseconds(1500 - distError + angleError + edgeError);
+  left_rear_motor.writeMicroseconds(1500 - distError + angleError - edgeError);
+  right_rear_motor.writeMicroseconds(1500 + distError + angleError - edgeError);
+  right_font_motor.writeMicroseconds(1500 + distError + angleError + edgeError);
+}
+
 void straight_drive (float distanceLS, float distanceLF, float distanceUS, float direction, float edgeDist)
 {
   
 
   float angleError = direction * 30 * (distanceLS - distanceLF);
-  float edgeError = 30 * (edgeDist - (distanceLF + distanceLS)/2);
+  //float edgeError = 30 * (edgeDist - (distanceLF + distanceLS)/2);
+  float edgeError = 30 * (edgeDist - distanceLF);
   //int edgeError = 0;
 
   left_font_motor.writeMicroseconds(1500 + direction * (speed_val) + angleError + edgeError);
@@ -639,7 +772,7 @@ void straight_drive (float distanceLS, float distanceLF, float distanceUS, float
 
   if (direction > 0)
   {
-    if (distanceUS <= 30)
+    if (distanceUS <= 15)
     {
       stop();
     } 
@@ -647,7 +780,7 @@ void straight_drive (float distanceLS, float distanceLF, float distanceUS, float
 
   if (direction < 0)
   {
-    if (distanceUS >= (198 - (24 + 30)))
+    if (distanceUS >= (198 - (24 + 15)))
     {
       stop();
     } 
