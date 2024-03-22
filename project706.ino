@@ -182,10 +182,13 @@ void loop(void) //main loop
   //straight_drive(distanceLS, distanceLF, distanceUS);
   if(x == 1){
   driveAtDistFromWall(frontLeft, rearLeft, 20, 5);
-  //_delay_ms(1500);
+  _delay_ms(100);
   //moveToDistFromWall(frontLeft, rearLeft,30);
-  //_delay_ms(1500);
-  //driveAtDistFromWall(frontLeft, rearLeft, 30, 100);
+  strafe_right();
+  _delay_ms(500);
+  stop();
+  _delay_ms(100);
+  driveAtDistFromWall(frontLeft, rearLeft, 30, 100);
   }
   x = 0;
 
@@ -529,15 +532,17 @@ void driveAtDistFromWall(Sensor frontSensor, Sensor rearSensor, float distFromWa
   if(frontSensor.isSensorLeft() != rearSensor.isSensorLeft()){// sensors must be from same side
     return;
   } 
+
+  float sonarReading = 0;
   //Proportional gains
-  int Ka = 15;
+  int Ka = 30;
   int Kd = 30;
-  int Ks = 10;
+  int Ks = 30;
 
   //integral gains
-  float KaI = 0.001;
-  float KdI = 0.001;
-  float KsI = 0.005;
+  float KaI = 0.5;
+  float KdI = 0.5;
+  float KsI = 0.1;
   
   // variable for exit condition
   int withinRange = 0;
@@ -561,9 +566,14 @@ void driveAtDistFromWall(Sensor frontSensor, Sensor rearSensor, float distFromWa
   int leftOrRight = frontSensor.isSensorLeft() ? -1 : 1;
   
   while(withinRange < 10){
+    sonarReading = HC_SR04_range();
+
     currentAngleError = getSensorDist(frontSensor) - getSensorDist(rearSensor);
-    currentDistError = (getSensorDist(frontSensor) + getSensorDist(rearSensor))/2) - distFromWall;
-    currentSonarError = HC_SR04_range() - sonarDesired;
+    currentDistError = ((getSensorDist(frontSensor) + getSensorDist(rearSensor))/2) - distFromWall;
+    currentSonarError = sonarReading - sonarDesired;
+
+     Serial.print("sonar = ");
+     Serial.println(currentSonarError);
 
 
     angleErrorIntegral += currentAngleError;
@@ -576,21 +586,28 @@ void driveAtDistFromWall(Sensor frontSensor, Sensor rearSensor, float distFromWa
 
     distError = SpeedCap(Kd*currentDistError + KdI*distErrorIntegral,500);
     angleError = SpeedCap(Ka*(currentAngleError) + KaI*angleErrorIntegral,500 - abs(distError));
-    sonarError = SpeedCap(Ks*currentSonarError + KsI*sonarErrorIntegral,500 - abs(angleError) - abs(distError));
 
+    if ((sonarReading < 20)||(currentSonarError < 10)){
+      distError = 0;
+      angleError = 0;
+    }
+    sonarError = SpeedCap(Ks*currentSonarError + KsI*sonarErrorIntegral,500 - abs(angleError) - abs(distError));
+    
     right_rear_motor.writeMicroseconds(1500 + sonarError + leftOrRight*(angleError - distError));
     right_font_motor.writeMicroseconds(1500 + sonarError + leftOrRight*(angleError + distError));
     left_font_motor.writeMicroseconds(1500 - sonarError + leftOrRight*(angleError + distError));
     left_rear_motor.writeMicroseconds(1500 - sonarError + leftOrRight*(angleError - distError));
 
-    if(abs(sonarError) < 2){
+    if(abs(currentSonarError) < 5){
       withinRange++;
     } else {
       withinRange = 0;
     }
-    
+    _delay_ms(5);
   }
+  Serial.println("Exit");
   stop();
+  return;
 } 
 int SpeedCap(float speed,int maxSpeed){
   int adjustedSpeed = speed;
