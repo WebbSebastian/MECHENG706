@@ -78,5 +78,39 @@ void cornerFindOpenLoop(){
  
 }
 
+// corner finder using gyro
+
+bool turnComplete = 0;
+bool spin(int degrees);
+
+
+void CornerFinder(){
+while(spin(360)){
+  if(sonarDistance > longest){
+    longest = sonarDistance;
+    LongAngle = angle;
+  }
+}
+
+spin(180 - LongAngle);
+forwards();
+
+if(sonarDistance < 15){stop();}
+
+// align to corner
+spin(45); //CW
+
+Serial.print("is this a corner?");
+}
+
+
+
+bool spin(int degrees){
+
+  if(turnComplete == 1){
+    return 1;
+  }
+  return 0;
+}
 
 
