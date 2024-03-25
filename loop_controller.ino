@@ -4,7 +4,7 @@ void setup() {
   int edge = 0; // to tell the car the current action is to drive laterally
   int driveDir = 0; // to tell the car to drive forward/backward
   int edgeCalc = 0; // to tell the car if it needs to calculate the distance from the wall to drive to
-  int hasRotated = 1; // to tell the car if it has rotated yet or not
+  int hasRotated = 1; // 1 until car has rotated, -1 after
 
   float edgeDist = 0; // the distance from the wall the car needs to drive laterally to
   float lateralStep = 0; // how many cm we want the car to drive laterally each time
@@ -12,6 +12,8 @@ void setup() {
 
 void loop() {
   // put your main code here, to run repeatedly:
+  ////////// Drive straight using short sensor then set drive to 1 ////////
+  
   while (drive)
   {
     if(driveDir)
@@ -43,19 +45,17 @@ void loop() {
     if (edgeCalc)
     {
       edgeDist = /*current distance*/ + (hasRotated * lateralStep)
-      /* 
-      if (edgeDist <= final distance)
+      if ((edgeDist <= /*final distance*/) && (hasRotated <= 0))
       {
-        edgeDist = final distance
+        edgeDist = /*final distance*/
         finale = 1;
       }
       ////////// finale will tell the robot this is the last run //////////
-      */ 
       edgeCalc = 0;
     }
     if (hasRotated > 0)
     {
-      if (edgeDist > (/*tableLength*/ / 2))
+      if (edgeDist >= (/*tableLength*/ / 2))
       {
         rotate();
         hasRotated = -1;
@@ -72,10 +72,15 @@ void loop() {
     }
     driveToDistFromWall()
     if (atEdgeWall) //////// need to change atEdgeWall to whatever we are using to sense the edge wall
-      {
-        drive = 1;
-        edge = 0;
-        edgeCalc = 1;
-      }
+    {
+      drive = 1;
+      edge = 0;
+      edgeCalc = 1;
+    }
+  }
+
+  while(finale)
+  {
+    //////// drive to end wall using short sensor then end ////////
   }
 }

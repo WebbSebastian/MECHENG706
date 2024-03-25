@@ -208,9 +208,20 @@ void loop(void) //main loop
     rotate();
     if (distanceUS >= maxDist)
     {
-      maxDist = distanceUS;
-      maxAngle = current_Angle;
+      if((irsensorLF >= 5) && (irsensorLF <= 80))
+      {
+      maxDist = currentDist;
+      maxAngle = currentAngle;
       //maxIR = 0;
+      }
+      else
+      {
+        maxDist = currentDist - 180;
+        if(maxDist <= 0)
+        {
+          maxDist += 360;
+        }
+      }
     }
   }
 
@@ -747,7 +758,12 @@ void corner_align (float distanceLS, float distanceLF, float distanceUS, float e
 {
   float angleError = 20 * (distanceLS - distanceLF);
   float edgeError = 20 * (edgeDist - distanceLF);
-  float distError = 20 * (198 - (24 + edgeDist));
+  float distError = 20 * (distanceUS - (198 - (24 + edgeDist)));
+
+  if(distError >= 200)
+  {
+    distError = 200;
+  }
   
   left_font_motor.writeMicroseconds(1500 - distError + angleError + edgeError);
   left_rear_motor.writeMicroseconds(1500 - distError + angleError - edgeError);
