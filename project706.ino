@@ -19,19 +19,49 @@
   Modified: 15/02/2018
   Author: Logan Stuart
 */
+
+#define arraySize = 8;
 class Sensor {
    private:
    int pin;
    bool isLeft;
    bool isFront;
    bool isShort;
+   
+   float prevDistance;
    public:
+   bool prevDistanceStored;
+
    Sensor(int Pin,bool IsLeft,bool IsFront,bool IsShort){
      this->pin = Pin;
      this->isLeft = IsLeft;
      this->isFront = IsFront;
      this->isShort = IsShort;
+     this->prevDistanceStored = false;
+     this->prevDistance = 0; 
    }
+   float getDistance(){
+     float cm = 0;
+     if (isShort){
+       cm = 2428*pow(analogRead(pin),-1);;
+     } else {
+      cm = 13.16092 + (153.9881 - 13.16092)/(1 + pow((analogRead(pin)/78.4712), 2.3085));
+     }
+     return cm;
+   }
+   float getDistanceAveraged(){
+     float current = getDistance();
+     float averaged = 0;
+     if (prevDistanceStored){
+       averaged = current*0.2 + prevDistance*0.8;
+     } else {
+       averaged = current;
+       prevDistanceStored = true;
+     }  
+     prevDistance = averaged;
+     return averaged;
+   }
+
    int getPin(){
      return pin;
    }
@@ -533,7 +563,13 @@ void driveAtDistFromWall(Sensor frontSensor, Sensor rearSensor, float distFromWa
     return;
   } 
 
+  frontSensor.prevDistanceStored = false;
+  rearSensor.prevDistanceStored = false;
+
   float sonarReading = 0;
+  float readingFrontIR = 0;
+  float readingRearIR = 0;
+
   //Proportional gains
   int Ka = 30;
   int Kd = 30;
@@ -567,9 +603,10 @@ void driveAtDistFromWall(Sensor frontSensor, Sensor rearSensor, float distFromWa
   
   while(withinRange < 10){
     sonarReading = HC_SR04_range();
-
-    currentAngleError = getSensorDist(frontSensor) - getSensorDist(rearSensor);
-    currentDistError = ((getSensorDist(frontSensor) + getSensorDist(rearSensor))/2) - distFromWall;
+    float readingFrontIR = frontSensor.getDistanceAveraged();
+    float readingRearIR = rearSensor.getDistanceAveraged();
+    currentAngleError = readingFrontIR - readingRearIR;
+    currentDistError = ((readingFrontIR + readingRearIR)/2) - distFromWall;
     currentSonarError = sonarReading - sonarDesired;
 
      Serial.print("sonar = ");
