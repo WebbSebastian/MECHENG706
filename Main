@@ -623,6 +623,7 @@ void diagonal_downleft ()
   right_font_motor.writeMicroseconds(1500);
 } 
 
+
 float DistanceIR(int range){//Could add the sonar sensor to this and just have one complete distance fuction
 
   static float distance = 0;
@@ -639,7 +640,7 @@ float DistanceIR(int range){//Could add the sonar sensor to this and just have o
         distance += LFArray[i];
       }*/
     distance = LFPre/ArraySize;
-    distance = 13.16092 + (153.9881 - 13.16092)/(1 + pow((distance/78.4712), 2.3085)); // calculate the distance using the datasheet graph
+    distance = 14.5918 + (121.3611)/(1 + pow((distance/86.17608), 2.578795)); // calculate the distance using the datasheet graph
   }
   else if (range == LB){
     distance = analogRead(irsensorLB); // the read out is a signal from 0-1023 corresponding to 0-5v Short Front
@@ -650,7 +651,7 @@ float DistanceIR(int range){//Could add the sonar sensor to this and just have o
       LBPos = 0;
     }
     distance = LBPre/ArraySize;
-    distance = 13.16092 + (153.9881 - 13.16092)/(1 + pow((distance/78.4712), 2.3085)); // calculate the distance using the datasheet graph
+    distance = 13.36312 + (104365186.637)/(1 + pow((distance/0.06208813), 1.967368)); // calculate the distance using the datasheet graph
   }
   else if (range == SF){
     distance = analogRead(irsensorSF); // the read out is a signal from 0-1023 corresponding to 0-5v Short Front  
