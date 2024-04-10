@@ -50,18 +50,28 @@ class Sensor {
      return cm;
    }
    float getDistanceAveraged(){
-     float current = getDistance();
+     float current = getDistanceMean();
      float averaged = 0;
      if (prevDistanceStored){
-       averaged = current*0.2 + prevDistance*0.8;
+       averaged = current*0.7 + prevDistance*0.3;
      } else {
-       averaged = current;
+       averaged = getDistanceMean();
        prevDistanceStored = true;
      }  
      prevDistance = averaged;
      return averaged;
    }
-
+   float getDistanceMean(){
+     int numOfReadings = 15;
+     float mean = 0;
+     int i = 0;
+     while (i < numOfReadings ){
+       mean += getDistance();
+       delay(1);
+       i++;
+     }
+     return (mean)/numOfReadings;
+   }  
    int getPin(){
      return pin;
    }
@@ -125,8 +135,8 @@ HardwareSerial *SerialCom;
 ////////////////////// IR SENSOR PINS and Variables//////////////
 const int irsensorSF = A10; //Short Front sensor is attached on pinA0
 const int irsensorSS = A11; //Short Side sensor is attached on 
-const int irsensorLF = A8; //Long Front sensor is attached on 
-const int irsensorLS = A9; //Long Side sensor is attached on 
+const int irsensorLS = A8; //Long Front sensor is attached on 
+const int irsensorLF = A9; //Long Side sensor is attached on 
 byte serialRead = 0; //for control serial communication
 float ADCsignalSF = 0; // the read out signal in 0-1023 corresponding to 0-5v
 float ADCsignalSS = 0; // the read out signal in 0-1023 corresponding to 0-5v
@@ -150,6 +160,7 @@ Sensor rearRight(irsensorLS,false,false,false);
 
 int x = 1;
 int pos = 0;
+float readingFrontRight,readingRearRight,readingFrontLeft,readingRearLeft;
 void setup(void)
 {
   turret_motor.attach(11);
@@ -211,17 +222,59 @@ void loop(void) //main loop
 
   //straight_drive(distanceLS, distanceLF, distanceUS);
   if(x == 1){
-  driveAtDistFromWall(frontLeft, rearLeft, 20, 5);
+  // // driveAtDistFromWall(frontLeft, rearLeft, 20, 5);
+  // // _delay_ms(100);
+  // // strafe_right();
+  // // _delay_ms(500);
+  // // stop();
+  // // _delay_ms(100);
+  // // driveAtDistFromWall(frontLeft, rearLeft, 30, 100);
+
+  driveAtDistFromWall(frontRight, rearRight, 50, 5);
   _delay_ms(100);
-  //moveToDistFromWall(frontLeft, rearLeft,30);
-  strafe_right();
+  strafe_left();
   _delay_ms(500);
   stop();
   _delay_ms(100);
-  driveAtDistFromWall(frontLeft, rearLeft, 30, 100);
+  driveAtDistFromWall(frontRight, rearRight, 60, 170);
+  _delay_ms(100);
+  strafe_left();
+  _delay_ms(500);
+  stop();
+  _delay_ms(100);
+  driveAtDistFromWall(frontRight, rearRight, 70, 5);
+  _delay_ms(100);
+  strafe_left();
+  _delay_ms(500);
+  stop();
+  _delay_ms(100);
+  driveAtDistFromWall(frontRight, rearRight, 80, 170);
+
+
   }
   x = 0;
+  // float sonarReading = 0;
+  // while(1){
+  // // readingFrontRight = frontRight.getDistanceMean();
+  // // delay(1000);
+  // // readingRearRight = rearRight.getDistanceMean();
 
+  // // Serial.print("Front Right Dist = ");
+  // // Serial.println(readingFrontRight);
+  // // delay(1000);
+  // // Serial.print("Rear Right Dist = ");
+  // // Serial.println(readingRearRight);
+  // delay(1000);
+  // sonarReading = HC_SR04_range();
+  // delay(1);
+  // sonarReading += HC_SR04_range();
+  // delay(1);
+  // sonarReading += HC_SR04_range();
+  // sonarReading = sonarReading/3;
+  // Serial.print("sonar Dist = ");
+  // Serial.println(sonarReading);
+  // }
+  
 
 
   // if(IR_SERIAL){ //Serial controll for the IR sensor
@@ -571,14 +624,14 @@ void driveAtDistFromWall(Sensor frontSensor, Sensor rearSensor, float distFromWa
   float readingRearIR = 0;
 
   //Proportional gains
-  int Ka = 30;
-  int Kd = 30;
-  int Ks = 30;
+  int Ka = 5;
+  int Kd = 10;
+  int Ks = 8;
 
   //integral gains
-  float KaI = 0.5;
+  float KaI = 0.2;
   float KdI = 0.5;
-  float KsI = 0.1;
+  float KsI = 0.2;
   
   // variable for exit condition
   int withinRange = 0;
@@ -600,19 +653,45 @@ void driveAtDistFromWall(Sensor frontSensor, Sensor rearSensor, float distFromWa
 
   //Variable for kinematic calculation
   int leftOrRight = frontSensor.isSensorLeft() ? -1 : 1;
-  
+
+  int numOfVals = 10;
+  int i = 0;
   while(withinRange < 10){
-    sonarReading = HC_SR04_range();
-    float readingFrontIR = frontSensor.getDistanceAveraged();
-    float readingRearIR = rearSensor.getDistanceAveraged();
+    i=0;
+    readingFrontIR = 0;
+    readingRearIR = 0;
+    while(i < numOfVals){
+      readingFrontIR += frontSensor.getDistance();
+      readingRearIR += rearSensor.getDistance();
+      delay(1);
+      i++;
+    }
+    
+    readingFrontIR = readingFrontIR/(float)numOfVals;
+    readingRearIR = readingRearIR/(float)numOfVals;
+
     currentAngleError = readingFrontIR - readingRearIR;
     currentDistError = ((readingFrontIR + readingRearIR)/2) - distFromWall;
+
+    
+
+    sonarReading = HC_SR04_range();
     currentSonarError = sonarReading - sonarDesired;
 
-     Serial.print("sonar = ");
-     Serial.println(currentSonarError);
-
-
+    if ((sonarReading > 120)){ // ends of the table
+      frontSensor.prevDistanceStored = false;
+      currentDistError = readingRearIR - distFromWall;
+      // distErrorIntegral = 0;
+      currentAngleError = 0;
+      angleErrorIntegral = 0;
+    }
+    if (sonarReading < 20){ // ends of the table
+      rearSensor.prevDistanceStored = false;
+      currentDistError = readingFrontIR - distFromWall;
+      // distErrorIntegral = 0;
+      currentAngleError = 0;
+      angleErrorIntegral = 0;
+    }
     angleErrorIntegral += currentAngleError;
     distErrorIntegral += currentDistError;
     if (abs(currentSonarError)< 10){
@@ -620,14 +699,9 @@ void driveAtDistFromWall(Sensor frontSensor, Sensor rearSensor, float distFromWa
     } else {
       sonarErrorIntegral = 0;
     }
-
+    
     distError = SpeedCap(Kd*currentDistError + KdI*distErrorIntegral,500);
     angleError = SpeedCap(Ka*(currentAngleError) + KaI*angleErrorIntegral,500 - abs(distError));
-
-    if ((sonarReading < 20)||(currentSonarError < 10)){
-      distError = 0;
-      angleError = 0;
-    }
     sonarError = SpeedCap(Ks*currentSonarError + KsI*sonarErrorIntegral,500 - abs(angleError) - abs(distError));
     
     right_rear_motor.writeMicroseconds(1500 + sonarError + leftOrRight*(angleError - distError));
@@ -640,7 +714,7 @@ void driveAtDistFromWall(Sensor frontSensor, Sensor rearSensor, float distFromWa
     } else {
       withinRange = 0;
     }
-    _delay_ms(5);
+    _delay_ms(2);
   }
   Serial.println("Exit");
   stop();
@@ -657,6 +731,7 @@ int SpeedCap(float speed,int maxSpeed){
 
   return adjustedSpeed;
 }
+
 
 // void moveToDistFromWall(Sensor frontSensor, Sensor rearSensor, float distFromWall){
 //   if(!frontSensor.isSensorFront()){
