@@ -18,12 +18,35 @@ class Sensor {
      this->prevDistanceStored = false;
      this->prevDistance = 0; 
    }
+   int getADC(){
+     return(analogRead(pin));
+   }
+   float getADCMean(){
+     int numOfVals = 100;
+     int i = 0;
+     float mean = 0;
+     while(i < numOfVals){
+       i++;
+       mean += getADC();
+       delay(50);
+     }
+     return (mean/numOfVals);
+   }
    float getDistance(){
      float cm = 0;
-     if (isShort){
-       cm = 2428*pow(analogRead(pin),-1);;
-     } else {
-      cm = 13.16092 + (153.9881 - 13.16092)/(1 + pow((analogRead(pin)/78.4712), 2.3085));
+     int valADC = getADC();
+     if (isShort){//SHORT
+       if(isFront){//SHORT FRONT
+       cm = 2.713274 + (48662440 - 2.713274)/(1 + pow((valADC/0.004403527),1.440451));
+       }else{//SHORT REAR
+       cm = 4.184835 + (53857500 - 4.184835)/(1 + pow((valADC/0.05076238),1.913511));
+       }
+     } else { //LONG
+      if(isFront){//LONG FRONT
+       cm = 6.292739 + (162.0963 - 6.292739)/(1 + pow((valADC/61.49072),1.563003));
+      }else{ // LONG REAR
+       cm = 7.170986 + (119.0328 - 7.170986)/(1 + pow((valADC/81.88624),1.728431));
+      }
      }
      return cm;
    }
@@ -32,13 +55,13 @@ class Sensor {
      float current = getDistance();
      float averaged = 0;
      if (prevDistanceStored){
-       float variabilityAllowance = 3;
+       float variabilityAllowance = 5;
        float change = current - prevDistance;
        if(abs(change)>variabilityAllowance){
          change = variabilityAllowance;
        }
        change = abs(change)/variabilityAllowance;
-       averaged = prevDistance*(0.1 + change*0.8) + current*(0.9 - change*0.8);
+       averaged = prevDistance*(0.1 +change*0.8) + current*(0.9 - change*0.8);
      } else {
        averaged = getDistanceMean();
        prevDistanceStored = true;
@@ -238,6 +261,20 @@ void loop(void) //main loop
 
   }
   x = 0;
+  while(1){
+    // Serial.print("short front reading = ");
+    // Serial.println(shortFront.getDistanceMean());
+    // delay(1000);
+    // Serial.print("long front reading = ");
+    // Serial.println(longFront.getDistanceMean());
+    // delay(1000);
+    // Serial.print("short rear reading = ");
+    // Serial.println(shortRear.getDistanceMean());
+    // delay(1000);
+    // Serial.print("long rear reading = ");
+    // Serial.println(longRear.getDistanceMean());
+    // delay(1000);
+  }
 }
 
 
@@ -554,14 +591,14 @@ void driveAtDistFromWall(Sensor frontSensor, Sensor rearSensor, float distFromWa
   float readingRearIR = 0;
 
   //Proportional gains
-  int Ka = 5;
-  int Kd = 10;
-  int Ks = 8;
+  int Ka = 50;
+  int Kd = 50;
+  int Ks = 6;
 
   //integral gains
-  float KaI = 0.2;
+  float KaI = 0.5;
   float KdI = 0.5;
-  float KsI = 0.2;
+  float KsI = 0.5;
   
   // variable for exit condition
   int withinRange = 0;
@@ -586,17 +623,22 @@ void driveAtDistFromWall(Sensor frontSensor, Sensor rearSensor, float distFromWa
 
   int numOfVals = 10;
   int i = 0;
-
+  int maxSpeed = 500;
+  int currentMaxSpeed = 100;
 
   while(withinRange < 10){
-
+    if(currentMaxSpeed < maxSpeed++){
+      currentMaxSpeed = currentMaxSpeed + 20;
+    } else {
+      currentMaxSpeed = 500;
+    }
 
     // i=0;
     // readingFrontIR = 0;
     // readingRearIR = 0;
     // while(i < numOfVals){
-      readingFrontIR += frontSensor.getDistanceAveraged();
-      readingRearIR += rearSensor.getDistanceAveraged();
+      readingFrontIR = frontSensor.getDistanceAveraged();
+      readingRearIR = rearSensor.getDistanceAveraged();
     //   delay(1);
     //   i++;
     // }
@@ -610,17 +652,17 @@ void driveAtDistFromWall(Sensor frontSensor, Sensor rearSensor, float distFromWa
     sonarReading = HC_SR04_range();
     currentSonarError = sonarReading - sonarDesired;
 
-    if ((sonarReading > 120)){ // ends of the table
+    if ((sonarReading > 140)){ // ends of the table
       rearSensor.prevDistanceStored = false;
-      currentDistError = readingFrontIR - distFromWall;
-      // distErrorIntegral = 0;
+      currentDistError = 0;
+      distErrorIntegral = 0;
       currentAngleError = 0;
       angleErrorIntegral = 0;
     }
     if (sonarReading < 20){ // ends of the table
       frontSensor.prevDistanceStored = false;
-      currentDistError = readingRearIR - distFromWall;
-      // distErrorIntegral = 0;
+      currentDistError = 0;
+      distErrorIntegral = 0;
       currentAngleError = 0;
       angleErrorIntegral = 0;
     }
@@ -633,9 +675,9 @@ void driveAtDistFromWall(Sensor frontSensor, Sensor rearSensor, float distFromWa
     }
 
 
-    angleError = SpeedCap(Ka*(currentAngleError) + KaI*angleErrorIntegral,500);
-    distError = SpeedCap(Kd*currentDistError + KdI*distErrorIntegral,500 - abs(angleError));
-    sonarError = SpeedCap(Ks*currentSonarError + KsI*sonarErrorIntegral,500 - abs(angleError) - abs(distError));
+    angleError = SpeedCap(Ka*(currentAngleError) + KaI*angleErrorIntegral,currentMaxSpeed);
+    distError = SpeedCap(Kd*currentDistError + KdI*distErrorIntegral,currentMaxSpeed - abs(angleError));
+    sonarError = SpeedCap(Ks*currentSonarError + KsI*sonarErrorIntegral,currentMaxSpeed - abs(angleError) - abs(distError));
     
     right_rear_motor.writeMicroseconds(1500 + sonarError + leftOrRight*(angleError + distError));
     right_font_motor.writeMicroseconds(1500 + sonarError + leftOrRight*(angleError - distError));
