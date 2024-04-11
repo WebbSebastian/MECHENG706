@@ -233,31 +233,30 @@ void loop(void) //main loop
 
   //straight_drive(distanceLS, distanceLF, distanceUS);
   if(x == 1){
+  goToDistFromWall(shortFront, shortRear, 8);
+   _delay_ms(100);
   driveAtDistFromWall(shortFront, shortRear, 8, 5);
   _delay_ms(100);
-  strafe_right();
-  _delay_ms(500);
-  stop();
+  goToDistFromWall(shortFront, shortRear, 18);
   _delay_ms(100);
   driveAtDistFromWall(shortFront, shortRear, 18, 170);
   _delay_ms(100);
-  strafe_right();
-  _delay_ms(500);
-  stop();
+   goToDistFromWall(shortFront, shortRear, 28);
   _delay_ms(100);
   driveAtDistFromWall(longFront, longRear, 28, 5);
   _delay_ms(100);
-  strafe_right();
-  _delay_ms(500);
-  stop();
+  goToDistFromWall(longFront, longRear, 38);
   _delay_ms(100);
   driveAtDistFromWall(longFront, longRear, 38, 170);
-    _delay_ms(100);
-  strafe_right();
-  _delay_ms(500);
-  stop();
+  _delay_ms(100);
+  goToDistFromWall(longFront, longRear, 48);
   _delay_ms(100);
   driveAtDistFromWall(longFront, longRear, 48, 5);
+  _delay_ms(100);
+  goToDistFromWall(longFront, longRear, 55);
+  _delay_ms(100);
+  driveAtDistFromWall(longFront, longRear, 55, 170);
+
 
   }
   x = 0;
@@ -591,14 +590,14 @@ void driveAtDistFromWall(Sensor frontSensor, Sensor rearSensor, float distFromWa
   float readingRearIR = 0;
 
   //Proportional gains
-  int Ka = 50;
-  int Kd = 50;
+  int Ka = 30;
+  int Kd = 30;
   int Ks = 6;
 
   //integral gains
-  float KaI = 0.5;
-  float KdI = 0.5;
-  float KsI = 0.5;
+  float KaI = 0.3;
+  float KdI = 0.3;
+  float KsI = 0.2;
   
   // variable for exit condition
   int withinRange = 0;
@@ -652,7 +651,7 @@ void driveAtDistFromWall(Sensor frontSensor, Sensor rearSensor, float distFromWa
     sonarReading = HC_SR04_range();
     currentSonarError = sonarReading - sonarDesired;
 
-    if ((sonarReading > 140)){ // ends of the table
+    if ((sonarReading > 130)){ // ends of the table
       rearSensor.prevDistanceStored = false;
       currentDistError = 0;
       distErrorIntegral = 0;
@@ -696,7 +695,143 @@ void driveAtDistFromWall(Sensor frontSensor, Sensor rearSensor, float distFromWa
   return;
 } 
 
+void goToDistFromWall(Sensor frontSensor, Sensor rearSensor, float distFromWall){
+  if(!frontSensor.isSensorFront()){
+    return;
+  }
+  if(rearSensor.isSensorFront()){
+    return;
+  }
+  if(frontSensor.isSensorLeft() != rearSensor.isSensorLeft()){// sensors must be from same side
+    return;
+  } 
 
+  frontSensor.prevDistanceStored = false;
+  rearSensor.prevDistanceStored = false;
+
+  float sonarReading = 0;
+  float readingFrontIR = 0;
+  float readingRearIR = 0;
+
+  //Proportional gains
+  int Ka = 0;
+  int Kd = 20;
+  int Ks = 6;
+
+  //integral gains
+  float KaI = 0;
+  float KdI = 0.15;
+  float KsI = 0.5;
+  
+  // variable for exit condition
+  int withinRange = 0;
+  
+  //current errors
+  float currentAngleError = 0;
+  float currentDistError = 0;
+  float currentSonarError = 0;
+
+  //error integrals
+  float angleErrorIntegral = 0;
+  float distErrorIntegral = 0;
+  float sonarErrorIntegral = 0;
+
+  //final Error coefficients
+  int angleError = 0;
+  int distError = 0; 
+  int sonarError = 0;
+
+  //Variable for kinematic calculation
+  int leftOrRight = frontSensor.isSensorLeft() ? -1 : 1;
+
+  int numOfVals = 10;
+  int i = 0;
+  int maxSpeed = 500;
+  int currentMaxSpeed = 100;
+    sonarReading = HC_SR04_range();
+    delay(2);
+    sonarReading += HC_SR04_range();
+    delay(2);
+    sonarReading += HC_SR04_range();
+    sonarReading = sonarReading/3;
+
+  while(withinRange < 10){
+    if(currentMaxSpeed < maxSpeed++){
+      currentMaxSpeed = currentMaxSpeed + 20;
+    } else {
+      currentMaxSpeed = 500;
+    }
+
+    // i=0;
+    // readingFrontIR = 0;
+    // readingRearIR = 0;
+    // while(i < numOfVals){
+      readingFrontIR = frontSensor.getDistanceAveraged();
+      readingRearIR = rearSensor.getDistanceAveraged();
+    //   delay(1);
+    //   i++;
+    // }
+    
+    // readingFrontIR = readingFrontIR/(float)numOfVals;
+    // readingRearIR = readingRearIR/(float)numOfVals;
+
+    // currentAngleError = readingFrontIR - readingRearIR;
+    // currentDistError = ((readingFrontIR + readingRearIR)/2) - distFromWall;
+
+    
+    //currentSonarError = sonarReading - sonarDesired;
+    
+    if ((sonarReading > 140)){ // ends of the table
+      rearSensor.prevDistanceStored = false;
+      currentDistError = readingFrontIR - distFromWall;
+      //distErrorIntegral = 0;
+      currentAngleError = 0;
+      angleErrorIntegral = 0;
+    }else if (sonarReading < 20){ // ends of the table
+      frontSensor.prevDistanceStored = false;
+      currentDistError = readingRearIR - distFromWall;
+      //distErrorIntegral = 0;
+      currentAngleError = 0;
+      angleErrorIntegral = 0;
+    } else {
+     currentAngleError = readingFrontIR - readingRearIR;
+     currentDistError = ((readingFrontIR + readingRearIR)/2) - distFromWall;
+    }
+
+    angleErrorIntegral += currentAngleError;
+    if(abs(currentDistError) < 5){
+      distErrorIntegral += currentDistError;
+    } else {
+      distErrorIntegral = 0;
+    }
+    
+    // if (abs(currentSonarError)< 10){
+    //   sonarErrorIntegral += currentSonarError;
+    // } else {
+    //   sonarErrorIntegral = 0;
+    // }
+
+    distError = SpeedCap(Kd*currentDistError + KdI*distErrorIntegral,currentMaxSpeed );
+    //angleError = SpeedCap(Ka*(currentAngleError) + KaI*angleErrorIntegral,currentMaxSpeed - abs(distError));
+    //sonarError = SpeedCap(Ks*currentSonarError + KsI*sonarErrorIntegral,currentMaxSpeed - abs(angleError) - abs(distError));
+    
+    right_rear_motor.writeMicroseconds(1500 + sonarError + leftOrRight*(angleError + distError));
+    right_font_motor.writeMicroseconds(1500 + sonarError + leftOrRight*(angleError - distError));
+    left_font_motor.writeMicroseconds(1500 - sonarError + leftOrRight*(angleError - distError));
+    left_rear_motor.writeMicroseconds(1500 - sonarError + leftOrRight*(angleError + distError));
+    sonarReading = HC_SR04_range();
+    if(abs(currentDistError) < 2){
+      withinRange++;
+    } else {
+      withinRange = 0;
+    }
+    _delay_ms(2);
+
+  }
+  Serial.println("Exit");
+  stop();
+  return;
+} 
 
 int SpeedCap(float speed,int maxSpeed){
   int adjustedSpeed = speed;
