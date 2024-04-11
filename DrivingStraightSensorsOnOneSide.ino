@@ -93,8 +93,67 @@ class Sensor {
      return isShort;
    }
 };
+//--------------------------------------------- WIRELESS SETUP -------------------------------/
+#include <SoftwareSerial.h>
+
+#define INTERNAL_LED 13
+
+// Serial Data input pin
+#define BLUETOOTH_RX 10
+// Serial Data output pin
+#define BLUETOOTH_TX 11
+
+#define STARTUP_DELAY 10 // Seconds
+#define LOOP_DELAY 10 // miliseconds
+#define SAMPLE_DELAY 10 // miliseconds
 
 
+// USB Serial Port
+#define OUTPUTMONITOR 0
+#define OUTPUTPLOTTER 0
+
+// Bluetooth Serial Port
+#define OUTPUTBLUETOOTHMONITOR 1
+
+volatile int32_t Counter = 1;
+
+SoftwareSerial BluetoothSerial(BLUETOOTH_RX, BLUETOOTH_TX);
+//-------------------------------------------------------------------------------------------------/
+
+/// ----------------------------------------- ADDED FOR ROTATE -----------------------------// may need to change the name of some of the variable when adding corner finder
+int sensorPin = A2;         //define the pin that gyro is connected 
+int T = 100;                // T is the time of one loop, 0.1 sec
+int sensorValue = 0;        // read out value of sensor 
+float gyroSupplyVoltage = 5;    // supply voltage for gyro
+float gyroZeroVoltage = 515.5;  // the value of voltage when gyro is zero 
+float gyroSensitivity = 0.007;  // gyro sensitivity unit is (mv/degree/second) get from datasheet 
+float rotationThreshold = 1.5;  // because of gyro drifting, defining rotation angular velocity less 
+                                // than this value will be ignored
+float gyroRate = 0;         // read out value of sensor in voltage 
+float currentAngle = 0;     // current angle calculated by angular velocity integral on 
+
+
+//PID Parameters
+float desiredAngle = 210;
+float ur = 0;
+
+float error = 0;
+float prevError = 0;
+float errorDiff = 0;
+float errorInt = 0;
+
+float Pr = 4.1;
+float Ir = 0.00001;
+float Dr = 0;
+
+int stage1 = 1;
+int stage2 = 0;
+int stage3 = 0;
+
+//int maxAngle = 0; 
+int currentDist = 0;
+//int maxDist = 0;
+//--------------------------------------------ROTATE-------------------------------------------///
 
 #include <Servo.h>  //Need for Servo pulse output
 
@@ -174,9 +233,28 @@ int pos = 0;
 float readingFrontRight,readingRearRight,readingFrontLeft,readingRearLeft;
 void setup(void)
 {
+  Serial.begin(115200);
+  BluetoothSerial.begin(115200);
   turret_motor.attach(11);
   pinMode(LED_BUILTIN, OUTPUT);
+  //-------------rotate ode added----------
+    // this section is initialize the sensor, find the value of voltage when gyro is zero
+  int i;
+  float sum = 0; 
+  pinMode(sensorPin,INPUT); 
+  
+  Serial.println("please keep the sensor still for calibration");
+  Serial.println("get the gyro zero voltage");
 
+  for (i=0;i<100;i++) // read 100 values of voltage when gyro is at still, to calculate the zero-drift. 
+  {
+      sensorValue = analogRead(sensorPin);
+      sum += sensorValue;
+      delay(5);
+  }
+  Serial.println("finshed");
+  gyroZeroVoltage = sum/100; // average the sum as the zero drifting 
+  //----------------end of rotate code-------
   // The Trigger pin will tell the sensor to range find
   pinMode(TRIG_PIN, OUTPUT);
   digitalWrite(TRIG_PIN, LOW);
@@ -190,7 +268,7 @@ void setup(void)
 
   delay(1000); //settling time but no really needed
 
-  Serial.begin(115200); // start serial communication
+   // start serial communication
   
 }
 
@@ -230,7 +308,7 @@ void loop(void) //main loop
   // float distanceUS = HC_SR04_range();
   //SerialCom->println(distanceUS);
 
-
+  serialOutput(99, 99, 999);
   //straight_drive(distanceLS, distanceLF, distanceUS);
   if(x == 1){
   goToDistFromWall(shortFront, shortRear, 8);
@@ -241,7 +319,7 @@ void loop(void) //main loop
   _delay_ms(100);
   driveAtDistFromWall(shortFront, shortRear, 18, 170);
   _delay_ms(100);
-   goToDistFromWall(shortFront, shortRear, 28);
+  goToDistFromWall(shortFront, shortRear, 28);
   _delay_ms(100);
   driveAtDistFromWall(longFront, longRear, 28, 5);
   _delay_ms(100);
@@ -255,13 +333,10 @@ void loop(void) //main loop
   _delay_ms(100);
   goToDistFromWall(longFront, longRear, 55);
   _delay_ms(100);
-  driveAtDistFromWall(longFront, longRear, 55, 170);
-
+  driveAtDistFromWall(longFront, longRear, 55, 170);  
 
   }
-  x = 0;
-  while(1){
-    // Serial.print("short front reading = ");
+  // Serial.print("short front reading = ");
     // Serial.println(shortFront.getDistanceMean());
     // delay(1000);
     // Serial.print("long front reading = ");
@@ -273,7 +348,42 @@ void loop(void) //main loop
     // Serial.print("long rear reading = ");
     // Serial.println(longRear.getDistanceMean());
     // delay(1000);
+  x = 0;
+  while(currentAngle < 206){
+    error = desiredAngle - currentAngle;
+    errorDiff = (error - prevError) / T;
+    errorInt = errorInt + error * T;
+    ur = Pr * error + Ir * errorInt + Dr * errorDiff;
+    if (ur > 500)
+        ur = 500;
+    else if (ur < -500)
+        ur = -500;
+
+    speed_val = (int)ur;
+    prevError = error;
+    rotate();    
+    gyroRate = (analogRead(sensorPin)*gyroSupplyVoltage)/1023; 
+    // find the voltage offset the value of voltage when gyro is zero (still)
+    gyroRate -= (gyroZeroVoltage/1023 * gyroSupplyVoltage); 
+    // read out voltage divided the gyro sensitivity to calculate the angular velocity 
+    float angularVelocity = gyroRate/ gyroSensitivity; // from Data Sheet, gyroSensitivity is 0.007 V/dps
+    
+    // if the angular velocity is less than the threshold, ignore it
+    if (angularVelocity >= rotationThreshold || angularVelocity <= -rotationThreshold)
+    {
+        // we are running a loop in T (of T/1000 second).
+        float angleChange = angularVelocity/(1000/T) / 8;
+        currentAngle += angleChange; 
+    }
+
+    delay(10);
   }
+  Serial.print("exit");
+  goToDistFromWall(longFront, longRear, 30);  // CHANGE DISTANCE
+  driveAtDistFromWall(longFront, longRear,30, 170); // CHANGE DISTANCE
+  _delay_ms(100);
+ 
+
 }
 
 
@@ -304,7 +414,7 @@ STATE running() {
     #endif
 
     #ifndef NO_HC-SR04
-      //HC_SR04_range();
+      HC_SR04_range();
     #endif
 
     #ifndef NO_BATTERY_V_OK
@@ -844,3 +954,81 @@ int SpeedCap(float speed,int maxSpeed){
 
   return adjustedSpeed;
 }
+
+//-----------------------rotate---------------
+void rotate() {
+  left_font_motor.writeMicroseconds(1500 + speed_val); 
+  left_rear_motor.writeMicroseconds(1500 + speed_val); 
+  right_rear_motor.writeMicroseconds(1500 + speed_val); 
+  right_font_motor.writeMicroseconds(1500 + speed_val);
+}
+//--------------------------rotate-------------
+
+//----------------------------------------------WIRELESS FUNCTIONS---------------------------------//
+void delaySeconds(int TimedDelaySeconds)
+{
+  for (int i = 0; i < TimedDelaySeconds; i++)
+  {
+    delay(1000);
+  }
+}
+
+void flashLED(int LedNumber, int TimedDelay)
+{
+  digitalWrite(LedNumber, HIGH);
+  delaySeconds(TimedDelay);
+  digitalWrite(LedNumber, LOW);
+  delaySeconds(TimedDelay);
+}
+
+void serialOutputMonitor(int32_t Value1, int32_t Value2, int32_t Value3)
+{
+  String Delimiter = ", ";
+  
+  Serial.print(Value1, DEC);
+  Serial.print(Delimiter);
+  Serial.print(Value2, DEC);
+  Serial.print(Delimiter);
+  Serial.println(Value3, DEC);
+}
+
+void serialOutputPlotter(int32_t Value1, int32_t Value2, int32_t Value3)
+{
+  String Delimiter = ", ";
+  
+  Serial.print(Value1, DEC);
+  Serial.print(Delimiter);
+  Serial.print(Value2, DEC);
+  Serial.print(Delimiter);
+  Serial.println(Value3, DEC);
+}
+
+void bluetoothSerialOutputMonitor(int32_t Value1, int32_t Value2, int32_t Value3)
+{
+  String Delimiter = ", ";
+  
+  BluetoothSerial.print(Value1, DEC);
+  BluetoothSerial.print(Delimiter);
+  BluetoothSerial.print(Value2, DEC);
+  BluetoothSerial.print(Delimiter);
+  BluetoothSerial.println(Value3, DEC);
+}
+
+void serialOutput(int32_t Value1, int32_t Value2, int32_t Value3)
+{
+  if (OUTPUTMONITOR)
+  {
+    serialOutputMonitor(Value1, Value2, Value3);
+  }
+
+  if (OUTPUTPLOTTER)
+  {
+    serialOutputPlotter(Value1, Value2, Value3);
+  }
+
+  if (OUTPUTBLUETOOTHMONITOR)
+  {
+    bluetoothSerialOutputMonitor(Value1, Value2, Value3);;
+  }
+}
+//---------------------------------------------------------------------------------------------------------//
