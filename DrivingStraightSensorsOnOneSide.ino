@@ -1,4 +1,8 @@
-#define arraySize = 8;
+bool priorToTurn = true;
+float yDistBeforeTurn = 0;
+float sonarDistBeforeTurn =0;
+float yDistAfterTurn = 0;
+float sonarDistAfterTurn = 0;
 class Sensor {
    private:
    int pin;
@@ -378,6 +382,7 @@ void loop(void) //main loop
 
     delay(10);
   }
+  
   Serial.print("exit");
   goToDistFromWall(longFront, longRear, 30);  // CHANGE DISTANCE
   driveAtDistFromWall(longFront, longRear,30, 170); // CHANGE DISTANCE
@@ -767,13 +772,16 @@ void driveAtDistFromWall(Sensor frontSensor, Sensor rearSensor, float distFromWa
       distErrorIntegral = 0;
       currentAngleError = 0;
       angleErrorIntegral = 0;
-    }
-    if (sonarReading < 20){ // ends of the table
+      coordinateGenerator(readingFrontIR, sonarReading);
+    } else if (sonarReading < 20){ // ends of the table
       frontSensor.prevDistanceStored = false;
       currentDistError = 0;
       distErrorIntegral = 0;
       currentAngleError = 0;
-      angleErrorIntegral = 0;
+      angleErrorIntegral = 0;   
+      coordinateGenerator(readingRearIR, sonarReading);
+    } else {
+      coordinateGenerator(((readingFrontIR + readingRearIR)/2), sonarReading);
     }
     angleErrorIntegral += currentAngleError;
     distErrorIntegral += currentDistError;
@@ -897,15 +905,18 @@ void goToDistFromWall(Sensor frontSensor, Sensor rearSensor, float distFromWall)
       //distErrorIntegral = 0;
       currentAngleError = 0;
       angleErrorIntegral = 0;
+      coordinateGenerator(readingFrontIR, sonarReading);
     }else if (sonarReading < 20){ // ends of the table
       frontSensor.prevDistanceStored = false;
       currentDistError = readingRearIR - distFromWall;
       //distErrorIntegral = 0;
       currentAngleError = 0;
       angleErrorIntegral = 0;
+      coordinateGenerator(readingRearIR, sonarReading);
     } else {
      currentAngleError = readingFrontIR - readingRearIR;
      currentDistError = ((readingFrontIR + readingRearIR)/2) - distFromWall;
+     coordinateGenerator( ((readingFrontIR + readingRearIR)/2), sonarReading);
     }
 
     angleErrorIntegral += currentAngleError;
@@ -1032,3 +1043,17 @@ void serialOutput(int32_t Value1, int32_t Value2, int32_t Value3)
   }
 }
 //---------------------------------------------------------------------------------------------------------//
+void coordinateGenerator(float readingIR, float readingSonar){
+  float distFromSonarToMiddle = 10; //cm
+  float distFromIRsToMiddle = 10; //cm
+  float x,y = 0;
+  if(priorToTurn){
+    x = readingSonar + distFromSonarToMiddle;
+    y = readingIR + distFromIRsToMiddle;
+  } else {
+    x = sonarDistBeforeTurn + sonarDistAfterTurn - readingSonar;
+    y =  yDistBeforeTurn + yDistAfterTurn - readingIR;
+  }
+  serialOutput(x,y, 0);
+  //Do Whatever With x and y
+}
