@@ -139,7 +139,7 @@ int sensorPin = A2;         //define the pin that gyro is connected
 int T = 100;                // T is the time of one loop, 0.1 sec
 int sensorValue = 0;        // read out value of sensor 
 float gyroSupplyVoltage = 5;    // supply voltage for gyro
-float gyroZeroVoltage = 515.5;  // the value of voltage when gyro is zero 
+float gyroZeroVoltage = 512;  // the value of voltage when gyro is zero 
 float gyroSensitivity = 0.007;  // gyro sensitivity unit is (mv/degree/second) get from datasheet 
 float rotationThreshold = 1.5;  // because of gyro drifting, defining rotation angular velocity less 
                                 // than this value will be ignored
@@ -318,7 +318,10 @@ void loop(void) //main loop
   distanceUS = HC_SR04_range();
 
 
-/*
+
+
+  float IRDist = longFront.getDistance();
+
   if (rotating)
   {
     rotate();
@@ -375,14 +378,22 @@ void loop(void) //main loop
   if(corner)
   {
     corner_align(15);
+    if (IRDist <= 18)
+    {
+      if (distanceUS >= 198 - (24 + 18))
+      {
+        corner = 0;
+        area_coverage = 1;
+      }
+    }
     //exit condition should switch area_coverage to 1
   }
-*/
 
 
-  corner_finder();
 
-/*
+  //corner_align(15);
+
+
   //Path following
   if(area_coverage == 1){
   goToDistFromWall(shortFront, shortRear, 8);
@@ -409,7 +420,7 @@ void loop(void) //main loop
   _delay_ms(100);
   driveAtDistFromWall(longFront, longRear, 55, 170);  
   }
-  */
+  
 
   //ANGLE CONTROLLER
   /*
@@ -1150,6 +1161,7 @@ void corner_align (float edgeDist)
 {
   float distanceLR = longRear.getDistance();
   float distanceLF = longFront.getDistance();
+  float distanceUS = HC_SR04_range();
   
   static int maxSpeed = 500;
   static int currentMaxSpeed = 100;
@@ -1159,6 +1171,25 @@ void corner_align (float edgeDist)
   } else {
     currentMaxSpeed = 500;
   }
+
+/*
+  float angleError = 20 * (distanceLR - distanceLF);
+  float edgeError = 20 * (edgeDist - distanceLF);
+  float distError = 20 * (distanceUS - (198 - (24 + edgeDist)));
+  */
+
+/*
+  float leftFront_error = SpeedCap(distError + angleError + edgeError, currentMaxSpeed);
+  float leftRear_error = SpeedCap(distError + angleError - edgeError, currentMaxSpeed);
+  float rightRear_error = SpeedCap(-distError + angleError - edgeError, currentMaxSpeed);
+  float rightFront_error = SpeedCap(-distError + angleError + edgeError, currentMaxSpeed);
+
+  left_front_motor.writeMicroseconds(1500 + leftFront_error);
+  left_rear_motor.writeMicroseconds(1500 + leftRear_error);
+  right_rear_motor.writeMicroseconds(1500 + rightRear_error);
+  right_front_motor.writeMicroseconds(1500 + rightFront_error);
+  */
+  
   
   float angleError = SpeedCap(20 * (distanceLR - distanceLF), currentMaxSpeed);
   float edgeError = SpeedCap(20 * (edgeDist - distanceLF), currentMaxSpeed - abs(angleError));
@@ -1171,8 +1202,9 @@ void corner_align (float edgeDist)
 
 
   
-  left_front_motor.writeMicroseconds(1500 + distError + angleError + edgeError);
-  left_rear_motor.writeMicroseconds(1500 + distError + angleError - edgeError);
-  right_rear_motor.writeMicroseconds(1500 - distError + angleError - edgeError);
-  right_front_motor.writeMicroseconds(1500 - distError + angleError + edgeError);
+  right_rear_motor.writeMicroseconds(1500 + distError + angleError + edgeError);
+  right_front_motor.writeMicroseconds(1500 + distError + angleError - edgeError);
+  left_front_motor.writeMicroseconds(1500 - distError + angleError - edgeError);
+  left_rear_motor.writeMicroseconds(1500 - distError + angleError + edgeError);
+  
 }
