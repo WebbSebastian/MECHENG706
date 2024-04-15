@@ -20,6 +20,103 @@
   Author: Logan Stuart
 */
 #include <Servo.h>  //Need for Servo pulse output
+#include <SoftwareSerial.h> //Need for bluetooth debugging
+
+class Sensor {
+   private:
+   int pin;
+   bool isLeft;
+   bool isFront;
+   bool isShort;
+   
+   float prevDistance;
+
+   public:
+   bool prevDistanceStored;
+
+   Sensor(int Pin,bool IsLeft,bool IsFront,bool IsShort){
+     this->pin = Pin;
+     this->isLeft = IsLeft;
+     this->isFront = IsFront;
+     this->isShort = IsShort;
+     this->prevDistanceStored = false;
+     this->prevDistance = 0; 
+   }
+   int getADC(){
+     return (analogRead(pin));
+   }
+   float getADCMean(){
+     int numOfVals = 100;
+     int i = 0;
+     float mean = 0;
+     while(i < numOfVals){
+       i++;
+       mean += getADC();
+       delay(50);
+     }
+     return (mean/numOfVals);
+   }
+   float getDistance(){
+     float cm = 0;
+     int valADC = getADC();
+     if (isShort){//SHORT
+       if(isFront){//SHORT FRONT
+       cm = 2.713274 + (48662440 - 2.713274)/(1 + pow((valADC/0.004403527),1.440451));
+       }else{//SHORT REAR
+       cm = 4.184835 + (53857500 - 4.184835)/(1 + pow((valADC/0.05076238),1.913511));
+       }
+     } else { //LONG
+      if(isFront){//LONG FRONT
+       cm = 6.292739 + (162.0963 - 6.292739)/(1 + pow((valADC/61.49072),1.563003));
+      }else{ // LONG REAR
+       cm = 7.170986 + (119.0328 - 7.170986)/(1 + pow((valADC/81.88624),1.728431));
+      }
+     }
+     return cm;
+   }
+   float getDistanceAveraged(){
+     
+     float current = getDistance();
+     float averaged = 0;
+     if (prevDistanceStored){
+       float variabilityAllowance = 5;
+       float change = current - prevDistance;
+       if(abs(change)>variabilityAllowance){
+         change = variabilityAllowance;
+       }
+       change = abs(change)/variabilityAllowance;
+       averaged = prevDistance*(0.1 +change*0.8) + current*(0.9 - change*0.8);
+     } else {
+       averaged = getDistanceMean();
+       prevDistanceStored = true;
+     }  
+     prevDistance = averaged;
+     return averaged;
+   }
+   float getDistanceMean(){
+     int numOfReadings = 15;
+     float mean = 0;
+     int i = 0;
+     while (i < numOfReadings ){
+       mean += getDistance();
+       delay(1);
+       i++;
+     }
+     return (mean)/numOfReadings;
+   }  
+   int getPin(){
+     return pin;
+   }
+   bool isSensorLeft(){
+     return isLeft;
+   }
+   bool isSensorFront(){
+     return isFront;
+   }
+   bool isSensorShort(){
+     return isShort;
+   }
+};
 
 //#define NO_READ_GYRO  //Uncomment of GYRO is not attached.   
 //#define NO_HC-SR04 //Uncomment of HC-SR04 ultrasonic ranging sensor is not attached.
@@ -53,10 +150,10 @@ const int ECHO_PIN = 49;
 // Anything over 400 cm (23200 us pulse) is "out of range". Hit:If you decrease to this the ranging sensor but the timeout is short, you may not need to read up to 4meters.
 const unsigned int MAX_DIST = 23200;
 
-Servo left_font_motor;  // create servo object to control Vex Motor Controller 29
+Servo left_front_motor;  // create servo object to control Vex Motor Controller 29
 Servo left_rear_motor;  // create servo object to control Vex Motor Controller 29
 Servo right_rear_motor;  // create servo object to control Vex Motor Controller 29
-Servo right_font_motor;  // create servo object to control Vex Motor Controller 29
+Servo right_front_motor;  // create servo object to control Vex Motor Controller 29
 Servo turret_motor;
 
 int speed_val = 200;
@@ -72,10 +169,10 @@ float distanceUS = 0;
 HardwareSerial *SerialCom;
 
 ////////////////////// IR SENSOR PINS and Variables//////////////
-const int irsensorSF = A10; //Short Front sensor is attached on pinA0
-const int irsensorSS = A11; //Short Side sensor is attached on 
-const int irsensorLF = A8; //Long Front sensor is attached on 
-const int irsensorLS = A9; //Long Side sensor is attached on 
+const int irsensorSF = A11; //Short Front sensor is attached on pin A11
+const int irsensorSR = A10; //Short Rear is attached on pin A10
+const int irsensorLF = A8; //Long Front sensor is attached on pin A8
+const int irsensorLR = A9; //Long Rear sensor is attached on pin A9
 byte serialRead = 0; //for control serial communication
 float ADCsignalSF = 0; // the read out signal in 0-1023 corresponding to 0-5v
 float ADCsignalSS = 0; // the read out signal in 0-1023 corresponding to 0-5v
@@ -107,10 +204,32 @@ float current_Angle = 0;     // current angle calculated by angular velocity int
 //byte serialRead = 0; //for control serial communication
 //int signalADC = 0; // the read out signal in 0-1023 corresponding to 0-5v
 
+//Sensor obkjects
+Sensor SF = Sensor(irsensorSF, true, true, true);
+Sensor SR = Sensor(irsensorSR, true, false, true);
+Sensor LF = Sensor(irsensorLF, true, true, false);
+Sensor LR = Sensor(irsensorLR, true, false, false);
+
+//Not available yet
+/*
+Sensor US;
+Sensor Gyro;
+*/
+
 //Serial Controls
-#define IR_SERIAL 0
+#define IR_SERIAL 1
 #define US_SERIAL 0
 #define GYRO_SERIAL
+
+// Serial Data input pin
+#define BLUETOOTH_RX 10
+// Serial Data output pin
+#define BLUETOOTH_TX 11
+
+// Bluetooth Serial Port
+#define OUTPUTBLUETOOTHMONITOR 1
+
+SoftwareSerial BluetoothSerial(BLUETOOTH_RX, BLUETOOTH_TX);
 
 int pos = 0;
 void setup(void)
@@ -131,7 +250,7 @@ void setup(void)
 
   delay(1000); //settling time but no really needed
 
-  Serial.begin(115200); // start serial communication
+  BluetoothSerial.begin(115200); // start serial communication
 
 }
 
@@ -160,11 +279,14 @@ void loop(void) //main loop
     }
   }
 
+
+  
   // convert the 0-1023 signal to 0-5v
   gyroRate = (analogRead(sensorPin)*gyroSupplyVoltage)/1023; 
   // find the voltage offset the value of voltage when gyro is zero (still)
   gyroRate -= (gyroZeroVoltage/1023 * gyroSupplyVoltage); 
   // read out voltage divided the gyro sensitivity to calculate the angular velocity 
+  // (Gyro not mounted @ CoM, may need to adjust to find angular velocity )
   float angularVelocity = gyroRate/ gyroSensitivity; // from Data Sheet, gyroSensitivity is 0.007 V/dps
     
   // if the angular velocity is less than the threshold, ignore it
@@ -181,21 +303,24 @@ void loop(void) //main loop
   else if (current_Angle > 359)
   {current_Angle -= 360;}
 
+  /*
   ADCsignalSF = analogRead(irsensorSF); // the read out is a signal from 0-1023 corresponding to 0-5v Short Front 
-  ADCsignalSS = analogRead(irsensorSS); // the read out is a signal from 0-1023 corresponding to 0-5v Short Side
+  ADCsignalSR = analogRead(irsensorSR); // the read out is a signal from 0-1023 corresponding to 0-5v Short Rear
   ADCsignalLF = analogRead(irsensorLF); // the read out is a signal from 0-1023 corresponding to 0-5v Long Front 
-  ADCsignalLS = analogRead(irsensorLS); // the read out is a signal from 0-1023 corresponding to 0-5v Long Side
+  ADCsignalLR = analogRead(irsensorLR); // the read out is a signal from 0-1023 corresponding to 0-5v Long Rear
+
   float distanceSF = 2428*pow(ADCsignalSF,-1); // calculate the distance using the datasheet graph
-  float distanceSS = 2428*pow(ADCsignalSS,-1); // calculate the distance using the datasheet graph
+  float distanceSR = 2428*pow(ADCsignalSR,-1); // calculate the distance using the datasheet graph
   float distanceLF = 13.16092 + (153.9881 - 13.16092)/(1 + pow((ADCsignalLF/78.4712), 2.3085)); // calculate the distance using the datasheet graph
-  float distanceLS = 13.16092 + (153.9881 - 13.16092)/(1 + pow((ADCsignalLS/78.4712), 2.3085)); // calculate the distance using the datasheet graph
+  float distanceLR = 13.16092 + (153.9881 - 13.16092)/(1 + pow((ADCsignalLR/78.4712), 2.3085)); // calculate the distance using the datasheet graph
+  */
 
   float distanceUS = HC_SR04_range();
   //SerialCom->println(distanceUS);
 
   float edgeDist = 30;
   int dir = 1;
-
+  
   ////////////////////////// If driving forwards, LS then LF. If driving backwards, LF then LS //////////////////////////////////
   //straight_drive(distanceLF, distanceLS, distanceUS, dir, edgeDist); 
   //straight_drive(distanceLS, distanceLF, distanceUS, dir, edgeDist);
@@ -261,7 +386,17 @@ void loop(void) //main loop
   }
   */
 
-  corner_align(distanceLS, distanceLF, distanceUS, 15);
+  float distanceLR = LR.getDistance();
+  float distanceLF = LF.getDistance();
+  float distanceSR = SR.getDistance();
+  float distanceSF = SF.getDistance();
+
+  float ADCsignalLR = LR.getADC();
+  float ADCsignalLF = LF.getADC();
+  float ADCsignalSR = SR.getADC();
+  float ADCsignalSF = SF.getADC();
+
+  corner_align(distanceLR, distanceLF, distanceUS, 15);
   
   
 
@@ -276,15 +411,15 @@ void loop(void) //main loop
 
   if(IR_SERIAL){ //Serial controll for the IR sensor
 
-    Serial.print("SF: "); Serial.print(distanceSF); Serial.print("cm  "); Serial.print(ADCsignalSF); Serial.print("      ");
-    Serial.print("SS: "); Serial.print(distanceSS); Serial.print("cm  "); Serial.print(ADCsignalSS); Serial.print("          ");
-    Serial.print("LF: "); Serial.print(distanceLF); Serial.print("cm  "); Serial.print(ADCsignalLF); Serial.print("         ");
-    Serial.print("LS: "); Serial.print(distanceLS); Serial.print("cm "); Serial.print(ADCsignalLS); Serial.println("");
-    Serial.print("US: "); Serial.print(distanceUS); Serial.print("cm "); Serial.println("");
+    BluetoothSerial.print("SF: "); BluetoothSerial.print(distanceSF); BluetoothSerial.print("cm  "); BluetoothSerial.print("      ");
+    BluetoothSerial.print("SR: "); BluetoothSerial.print(distanceSR); BluetoothSerial.print("cm  "); BluetoothSerial.print("      ");
+    BluetoothSerial.print("LF: "); BluetoothSerial.print(distanceLF); BluetoothSerial.print("cm  "); BluetoothSerial.print("      ");
+    BluetoothSerial.print("LR: "); BluetoothSerial.print(distanceLR); BluetoothSerial.print("cm ");  BluetoothSerial.println("");
+    BluetoothSerial.print("US: "); BluetoothSerial.print(distanceUS); BluetoothSerial.print("cm "); BluetoothSerial.println("");
     delay(50);
 
   }
-  
+
 }
 
 
@@ -616,10 +751,10 @@ void read_serial_command()
 
 void disable_motors()
 {
-  left_font_motor.detach();  // detach the servo on pin left_front to turn Vex Motor Controller 29 Off
+  left_front_motor.detach();  // detach the servo on pin left_front to turn Vex Motor Controller 29 Off
   left_rear_motor.detach();  // detach the servo on pin left_rear to turn Vex Motor Controller 29 Off
   right_rear_motor.detach();  // detach the servo on pin right_rear to turn Vex Motor Controller 29 Off
-  right_font_motor.detach();  // detach the servo on pin right_front to turn Vex Motor Controller 29 Off
+  right_front_motor.detach();  // detach the servo on pin right_front to turn Vex Motor Controller 29 Off
 
   pinMode(left_front, INPUT);
   pinMode(left_rear, INPUT);
@@ -629,118 +764,118 @@ void disable_motors()
 
 void enable_motors()
 {
-  left_font_motor.attach(left_front);  // attaches the servo on pin left_front to turn Vex Motor Controller 29 On
+  left_front_motor.attach(left_front);  // attaches the servo on pin left_front to turn Vex Motor Controller 29 On
   left_rear_motor.attach(left_rear);  // attaches the servo on pin left_rear to turn Vex Motor Controller 29 On
   right_rear_motor.attach(right_rear);  // attaches the servo on pin right_rear to turn Vex Motor Controller 29 On
-  right_font_motor.attach(right_front);  // attaches the servo on pin right_front to turn Vex Motor Controller 29 On
+  right_front_motor.attach(right_front);  // attaches the servo on pin right_front to turn Vex Motor Controller 29 On
 }
 void stop() //Stop
 {
-  left_font_motor.writeMicroseconds(1500);
+  left_front_motor.writeMicroseconds(1500);
   left_rear_motor.writeMicroseconds(1500);
   right_rear_motor.writeMicroseconds(1500);
-  right_font_motor.writeMicroseconds(1500);
+  right_front_motor.writeMicroseconds(1500);
 }
 
 void forward()
 {
-  left_font_motor.writeMicroseconds(1500 + speed_val);
+  left_front_motor.writeMicroseconds(1500 + speed_val);
   left_rear_motor.writeMicroseconds(1500 + speed_val);
   right_rear_motor.writeMicroseconds(1500 - speed_val);
-  right_font_motor.writeMicroseconds(1500 - speed_val);
+  right_front_motor.writeMicroseconds(1500 - speed_val);
 }
 
 void reverse ()
 {
-  left_font_motor.writeMicroseconds(1500 - speed_val);
+  left_front_motor.writeMicroseconds(1500 - speed_val);
   left_rear_motor.writeMicroseconds(1500 - speed_val);
   right_rear_motor.writeMicroseconds(1500 + speed_val);
-  right_font_motor.writeMicroseconds(1500 + speed_val);
+  right_front_motor.writeMicroseconds(1500 + speed_val);
 }
 
 void ccw ()
 {
-  left_font_motor.writeMicroseconds(1500 - speed_val);
+  left_front_motor.writeMicroseconds(1500 - speed_val);
   left_rear_motor.writeMicroseconds(1500 - speed_val);
   right_rear_motor.writeMicroseconds(1500 - speed_val);
-  right_font_motor.writeMicroseconds(1500 - speed_val);
+  right_front_motor.writeMicroseconds(1500 - speed_val);
 }
 
 void cw ()
 {
-  left_font_motor.writeMicroseconds(1500 + speed_val);
+  left_front_motor.writeMicroseconds(1500 + speed_val);
   left_rear_motor.writeMicroseconds(1500 + speed_val);
   right_rear_motor.writeMicroseconds(1500 + speed_val);
-  right_font_motor.writeMicroseconds(1500 + speed_val);
+  right_front_motor.writeMicroseconds(1500 + speed_val);
 }
 
 void strafe_left ()
 {
-  left_font_motor.writeMicroseconds(1500 - speed_val);
+  left_front_motor.writeMicroseconds(1500 - speed_val);
   left_rear_motor.writeMicroseconds(1500 + speed_val);
   right_rear_motor.writeMicroseconds(1500 + speed_val);
-  right_font_motor.writeMicroseconds(1500 - speed_val);
+  right_front_motor.writeMicroseconds(1500 - speed_val);
 }
 
 void strafe_right ()
 {
-  left_font_motor.writeMicroseconds(1500 + speed_val);
+  left_front_motor.writeMicroseconds(1500 + speed_val);
   left_rear_motor.writeMicroseconds(1500 - speed_val);
   right_rear_motor.writeMicroseconds(1500 - speed_val);
-  right_font_motor.writeMicroseconds(1500 + speed_val);
+  right_front_motor.writeMicroseconds(1500 + speed_val);
 }
 
 void diagonal_upright ()
 {
-  left_font_motor.writeMicroseconds(1500 + speed_val);
+  left_front_motor.writeMicroseconds(1500 + speed_val);
   right_rear_motor.writeMicroseconds(1500 - speed_val);
 
   left_rear_motor.writeMicroseconds(1500);
-  right_font_motor.writeMicroseconds(1500);
+  right_front_motor.writeMicroseconds(1500);
 }
 
 void diagonal_upleft ()
 {
   left_rear_motor.writeMicroseconds(1500 + speed_val);
-  right_font_motor.writeMicroseconds(1500 - speed_val);
+  right_front_motor.writeMicroseconds(1500 - speed_val);
 
-  left_font_motor.writeMicroseconds(1500);
+  left_front_motor.writeMicroseconds(1500);
   right_rear_motor.writeMicroseconds(1500);
 }
 
 void diagonal_downright ()
 {
-  right_font_motor.writeMicroseconds(1500 + speed_val);
+  right_front_motor.writeMicroseconds(1500 + speed_val);
   left_rear_motor.writeMicroseconds(1500 - speed_val);
 
-  left_font_motor.writeMicroseconds(1500);
+  left_front_motor.writeMicroseconds(1500);
   right_rear_motor.writeMicroseconds(1500);
 }
 
 void diagonal_downleft ()
 {
-  left_font_motor.writeMicroseconds(1500 - speed_val);
+  left_front_motor.writeMicroseconds(1500 - speed_val);
   right_rear_motor.writeMicroseconds(1500 + speed_val);
 
   left_rear_motor.writeMicroseconds(1500);
-  right_font_motor.writeMicroseconds(1500);
+  right_front_motor.writeMicroseconds(1500);
 }
 
 void rotate ()
 {
-  left_font_motor.writeMicroseconds(1500 + speed_val);
+  left_front_motor.writeMicroseconds(1500 + speed_val);
   left_rear_motor.writeMicroseconds(1500 + speed_val);
   right_rear_motor.writeMicroseconds(1500 + speed_val);
-  right_font_motor.writeMicroseconds(1500 + speed_val);
+  right_front_motor.writeMicroseconds(1500 + speed_val);
 }
 
 void lateral_move (float distanceLS, float distanceLF, float edgeDist, float targetDist, float direction)
 {
   float edgeError = targetDist - edgeDist;
-  left_font_motor.writeMicroseconds(1500 + direction * edgeError);
+  left_front_motor.writeMicroseconds(1500 + direction * edgeError);
   left_rear_motor.writeMicroseconds(1500 - direction * edgeError);
   right_rear_motor.writeMicroseconds(1500 - direction * edgeError);
-  right_font_motor.writeMicroseconds(1500 + direction * edgeError);
+  right_front_motor.writeMicroseconds(1500 + direction * edgeError);
 }
 
 void straight_align (float distanceLS, float distanceLF, float edgeDist)
@@ -748,27 +883,38 @@ void straight_align (float distanceLS, float distanceLF, float edgeDist)
   float angleError = 20 * (distanceLS - distanceLF);
   float edgeError = 20 * (edgeDist - distanceLF);
 
-  left_font_motor.writeMicroseconds(1500 + angleError + edgeError);
+  left_front_motor.writeMicroseconds(1500 + angleError + edgeError);
   left_rear_motor.writeMicroseconds(1500 + angleError - edgeError);
   right_rear_motor.writeMicroseconds(1500 + angleError - edgeError);
-  right_font_motor.writeMicroseconds(1500 + angleError + edgeError);
+  right_front_motor.writeMicroseconds(1500 + angleError + edgeError);
 }
 
-void corner_align (float distanceLS, float distanceLF, float distanceUS, float edgeDist)
+void corner_align (float distanceLR, float distanceLF, float distanceUS, float edgeDist)
 {
-  float angleError = 20 * (distanceLS - distanceLF);
-  float edgeError = 20 * (edgeDist - distanceLF);
-  float distError = 20 * (distanceUS - (198 - (24 + edgeDist)));
+  static int maxSpeed = 500;
+  static int currentMaxSpeed = 100;
+
+  if(currentMaxSpeed < maxSpeed++){
+    currentMaxSpeed = currentMaxSpeed + 20;
+  } else {
+    currentMaxSpeed = 500;
+  }
+  
+  float angleError = SpeedCap(20 * (distanceLR - distanceLF), currentMaxSpeed);
+  float edgeError = SpeedCap(20 * (edgeDist - distanceLF), currentMaxSpeed - abs(angleError));
+  float distError = SpeedCap(20 * (distanceUS - (198 - (24 + edgeDist))), currentMaxSpeed - abs(angleError) - abs(distError));
 
   if(distError >= 200)
   {
     distError = 200;
   }
+
+
   
-  left_font_motor.writeMicroseconds(1500 - distError + angleError + edgeError);
-  left_rear_motor.writeMicroseconds(1500 - distError + angleError - edgeError);
-  right_rear_motor.writeMicroseconds(1500 + distError + angleError - edgeError);
-  right_font_motor.writeMicroseconds(1500 + distError + angleError + edgeError);
+  left_front_motor.writeMicroseconds(1500 + distError + angleError + edgeError);
+  left_rear_motor.writeMicroseconds(1500 + distError + angleError - edgeError);
+  right_rear_motor.writeMicroseconds(1500 - distError + angleError - edgeError);
+  right_front_motor.writeMicroseconds(1500 - distError + angleError + edgeError);
 }
 
 void straight_drive (float distanceLS, float distanceLF, float distanceUS, float direction, float edgeDist)
@@ -780,10 +926,10 @@ void straight_drive (float distanceLS, float distanceLF, float distanceUS, float
   float edgeError = 30 * (edgeDist - distanceLF);
   //int edgeError = 0;
 
-  left_font_motor.writeMicroseconds(1500 + direction * (speed_val) + angleError + edgeError);
+  left_front_motor.writeMicroseconds(1500 + direction * (speed_val) + angleError + edgeError);
   left_rear_motor.writeMicroseconds(1500 + direction * (speed_val) + angleError - edgeError);
   right_rear_motor.writeMicroseconds(1500 - direction * (speed_val) + angleError - edgeError);
-  right_font_motor.writeMicroseconds(1500 - direction * (speed_val) + angleError + edgeError);
+  right_front_motor.writeMicroseconds(1500 - direction * (speed_val) + angleError + edgeError);
 
 
   if (direction > 0)
@@ -804,5 +950,17 @@ void straight_drive (float distanceLS, float distanceLF, float distanceUS, float
 
    
   
+}
+
+int SpeedCap(float speed,int maxSpeed){
+  int adjustedSpeed = speed;
+  if (speed > maxSpeed){
+    adjustedSpeed = maxSpeed;
+  }
+  else if (speed < -maxSpeed){
+    adjustedSpeed = -maxSpeed;
+  }
+
+  return adjustedSpeed;
 }
 
