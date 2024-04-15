@@ -123,11 +123,20 @@ volatile int32_t Counter = 1;
 
 SoftwareSerial BluetoothSerial(BLUETOOTH_RX, BLUETOOTH_TX);
 //-------------------------------------------------------------------------------------------------/
+/// ----------------------------------------- CORNER FINDER VARS -----------------------------//
+float maxDist = 0;
+float maxAngle = 0;
 
+/// ----------------------------------------- DRIVE STATE SWITCHING VARS -----------------------------//
+int has180 = 0;
+int rotating = 1;
+int align = 0;
+int corner = 0;
+int area_coverage = 0;
 
 /// ----------------------------------------- ADDED FOR ROTATE -----------------------------// may need to change the name of some of the variable when adding corner finder
 int sensorPin = A2;         //define the pin that gyro is connected 
-int T = 50;                // T is the time of one loop, 0.1 sec
+int T = 100;                // T is the time of one loop, 0.1 sec
 int sensorValue = 0;        // read out value of sensor 
 float gyroSupplyVoltage = 5;    // supply voltage for gyro
 float gyroZeroVoltage = 515.5;  // the value of voltage when gyro is zero 
@@ -189,10 +198,10 @@ const int ECHO_PIN = 49;
 // Anything over 400 cm (23200 us pulse) is "out of range". Hit:If you decrease to this the ranging sensor but the timeout is short, you may not need to read up to 4meters.
 const unsigned int MAX_DIST = 23200;
 
-Servo left_font_motor;  // create servo object to control Vex Motor Controller 29
+Servo left_front_motor;  // create servo object to control Vex Motor Controller 29
 Servo left_rear_motor;  // create servo object to control Vex Motor Controller 29
 Servo right_rear_motor;  // create servo object to control Vex Motor Controller 29
-Servo right_font_motor;  // create servo object to control Vex Motor Controller 29
+Servo right_front_motor;  // create servo object to control Vex Motor Controller 29
 Servo turret_motor;
 
 int speed_val = 200;
@@ -233,9 +242,9 @@ Sensor longFront(irsensorLF,true,true,false);
 #define US_SERIAL 0
 #define GYRO_SERIAL
 
+int x = 1;
 int pos = 0;
 float readingFrontRight,readingRearRight,readingFrontLeft,readingRearLeft;
-
 void setup(void)
 {
   Serial.begin(115200);
@@ -280,7 +289,7 @@ void setup(void)
 void loop(void) //main loop
 {
   static STATE machine_state = INITIALISING;
-  //Finite-state machine Code
+  //FSM battery state code
   switch (machine_state) {
     case INITIALISING:
       machine_state = initialising();
@@ -293,6 +302,7 @@ void loop(void) //main loop
       break;
   };
 
+  //Serial exit condition
   if (Serial.available()) // Check for input from terminal
   {
     serialRead = Serial.read(); // Read input
@@ -301,21 +311,16 @@ void loop(void) //main loop
       Serial.end(); // end the serial communication to get the sensor data
     }
   }
-  // ADCsignalSF = analogRead(irsensorSR); // the read out is a signal from 0-1023 corresponding to 0-5v Short Front 
-  // ADCsignalSS = analogRead(irsensorSF); // the read out is a signal from 0-1023 corresponding to 0-5v Short Side
-  // ADCsignalLF = analogRead(irsensorLR); // the read out is a signal from 0-1023 corresponding to 0-5v Long Front 
-  // ADCsignalLS = analogRead(irsensorLF); // the read out is a signal from 0-1023 corresponding to 0-5v Long Side
-  // float distanceSF = 2428*pow(ADCsignalSF,-1); // calculate the distance using the datasheet graph
-  // float distanceSS = 2428*pow(ADCsignalSS,-1); // calculate the distance using the datasheet graph
-  // float distanceLF = 13.16092 + (153.9881 - 13.16092)/(1 + pow((ADCsignalLF/78.4712), 2.3085)); // calculate the distance using the datasheet graph
-  // float distanceLS = 13.16092 + (153.9881 - 13.16092)/(1 + pow((ADCsignalLS/78.4712), 2.3085)); // calculate the distance using the datasheet graph
+ 
+  
+  read_gyro();
 
-  // float distanceUS = HC_SR04_range();
-  //SerialCom->println(distanceUS);
+  distanceUS = HC_SR04_range();
 
-  serialOutput(99, 99, 999);
-  //straight_drive(distanceLS, distanceLF, distanceUS);
-  if(x == 1){
+  corner_finder();
+
+  //Path following
+  if(area_coverage == 1){
   goToDistFromWall(shortFront, shortRear, 8);
    _delay_ms(100);
   driveAtDistFromWall(shortFront, shortRear, 8, 5);
@@ -339,34 +344,28 @@ void loop(void) //main loop
   goToDistFromWall(longFront, longRear, 55);
   _delay_ms(100);
   driveAtDistFromWall(longFront, longRear, 55, 170);  
-
   }
-  // Serial.print("short front reading = ");
-    // Serial.println(shortFront.getDistanceMean());
-    // delay(1000);
-    // Serial.print("long front reading = ");
-    // Serial.println(longFront.getDistanceMean());
-    // delay(1000);
-    // Serial.print("short rear reading = ");
-    // Serial.println(shortRear.getDistanceMean());
-    // delay(1000);
-    // Serial.print("long rear reading = ");
-    // Serial.println(longRear.getDistanceMean());
-    // delay(1000);
-  x = 0;
-  while(currentAngle < 206){
-    error = desiredAngle - currentAngle;
-    errorDiff = (error - prevError) / T;
-    errorInt = errorInt + error * T;
-    ur = Pr * error + Ir * errorInt + Dr * errorDiff;
-    if (ur > 500)
-        ur = 500;
-    else if (ur < -500)
-        ur = -500;
 
-    speed_val = (int)ur;
+  //ANGLE CONTROLLER
+  /*
+  while(currentAngle < 206){
+    float T_control = millis() - timePrev;
+
+    //Control computing
+    error = desiredAngle - currentAngle;
+    errorDiff = (error - prevError) / T_control;
+    errorInt = errorInt + error * T_control;
+
+    ur = Pr * error + Ir * errorInt + Dr * errorDiff;
+
+    speed_val = SpeedCap(ur, 500);
+
     prevError = error;
-    rotate();    
+    
+    //Actuation
+    rotate();
+
+    //Sensor Reading
     gyroRate = (analogRead(sensorPin)*gyroSupplyVoltage)/1023; 
     // find the voltage offset the value of voltage when gyro is zero (still)
     gyroRate -= (gyroZeroVoltage/1023 * gyroSupplyVoltage); 
@@ -377,18 +376,17 @@ void loop(void) //main loop
     if (angularVelocity >= rotationThreshold || angularVelocity <= -rotationThreshold)
     {
         // we are running a loop in T (of T/1000 second).
-        float angleChange = angularVelocity/(1000/T) / 8;
+        float angleChange = angularVelocity/(1000/T_control) / 8;
         currentAngle += angleChange; 
     }
 
+    float timePrev = millis();
+
     delay(10);
   }
-  
-  Serial.print("exit");
-  goToDistFromWall(longFront, longRear, 30);  // CHANGE DISTANCE
-  driveAtDistFromWall(longFront, longRear,30, 170); // CHANGE DISTANCE
-  _delay_ms(100);
- 
+  */
+
+  _delay_ms(T);
 
 }
 
@@ -638,10 +636,10 @@ void GYRO_reading()
 
 void disable_motors()
 {
-  left_font_motor.detach();  // detach the servo on pin left_front to turn Vex Motor Controller 29 Off
+  left_front_motor.detach();  // detach the servo on pin left_front to turn Vex Motor Controller 29 Off
   left_rear_motor.detach();  // detach the servo on pin left_rear to turn Vex Motor Controller 29 Off
   right_rear_motor.detach();  // detach the servo on pin right_rear to turn Vex Motor Controller 29 Off
-  right_font_motor.detach();  // detach the servo on pin right_front to turn Vex Motor Controller 29 Off
+  right_front_motor.detach();  // detach the servo on pin right_front to turn Vex Motor Controller 29 Off
 
   pinMode(left_front, INPUT);
   pinMode(left_rear, INPUT);
@@ -651,32 +649,32 @@ void disable_motors()
 
 void enable_motors()
 {
-  left_font_motor.attach(left_front);  // attaches the servo on pin left_front to turn Vex Motor Controller 29 On
+  left_front_motor.attach(left_front);  // attaches the servo on pin left_front to turn Vex Motor Controller 29 On
   left_rear_motor.attach(left_rear);  // attaches the servo on pin left_rear to turn Vex Motor Controller 29 On
   right_rear_motor.attach(right_rear);  // attaches the servo on pin right_rear to turn Vex Motor Controller 29 On
-  right_font_motor.attach(right_front);  // attaches the servo on pin right_front to turn Vex Motor Controller 29 On
+  right_front_motor.attach(right_front);  // attaches the servo on pin right_front to turn Vex Motor Controller 29 On
 }
 void stop() //Stop
 {
-  left_font_motor.writeMicroseconds(1500);
+  left_front_motor.writeMicroseconds(1500);
   left_rear_motor.writeMicroseconds(1500);
   right_rear_motor.writeMicroseconds(1500);
-  right_font_motor.writeMicroseconds(1500);
+  right_front_motor.writeMicroseconds(1500);
 }
 void strafe_right ()
 {
-  left_font_motor.writeMicroseconds(1500 - speed_val);
+  left_front_motor.writeMicroseconds(1500 - speed_val);
   left_rear_motor.writeMicroseconds(1500 + speed_val);
   right_rear_motor.writeMicroseconds(1500 + speed_val);
-  right_font_motor.writeMicroseconds(1500 - speed_val);
+  right_front_motor.writeMicroseconds(1500 - speed_val);
 }
 
 void strafe_left ()
 {
-  left_font_motor.writeMicroseconds(1500 + speed_val);
+  left_front_motor.writeMicroseconds(1500 + speed_val);
   left_rear_motor.writeMicroseconds(1500 - speed_val);
   right_rear_motor.writeMicroseconds(1500 - speed_val);
-  right_font_motor.writeMicroseconds(1500 + speed_val);
+  right_front_motor.writeMicroseconds(1500 + speed_val);
 }
 float getSensorDist(Sensor sensor){
   float cm = 0;
@@ -798,8 +796,8 @@ void driveAtDistFromWall(Sensor frontSensor, Sensor rearSensor, float distFromWa
     sonarError = SpeedCap(Ks*currentSonarError + KsI*sonarErrorIntegral,currentMaxSpeed - abs(angleError) - abs(distError));
     
     right_rear_motor.writeMicroseconds(1500 + sonarError + leftOrRight*(angleError + distError));
-    right_font_motor.writeMicroseconds(1500 + sonarError + leftOrRight*(angleError - distError));
-    left_font_motor.writeMicroseconds(1500 - sonarError + leftOrRight*(angleError - distError));
+    right_front_motor.writeMicroseconds(1500 + sonarError + leftOrRight*(angleError - distError));
+    left_front_motor.writeMicroseconds(1500 - sonarError + leftOrRight*(angleError - distError));
     left_rear_motor.writeMicroseconds(1500 - sonarError + leftOrRight*(angleError + distError));
 
     if(abs(currentSonarError) < 5){
@@ -938,8 +936,8 @@ void goToDistFromWall(Sensor frontSensor, Sensor rearSensor, float distFromWall)
     //sonarError = SpeedCap(Ks*currentSonarError + KsI*sonarErrorIntegral,currentMaxSpeed - abs(angleError) - abs(distError));
     
     right_rear_motor.writeMicroseconds(1500 + sonarError + leftOrRight*(angleError + distError));
-    right_font_motor.writeMicroseconds(1500 + sonarError + leftOrRight*(angleError - distError));
-    left_font_motor.writeMicroseconds(1500 - sonarError + leftOrRight*(angleError - distError));
+    right_front_motor.writeMicroseconds(1500 + sonarError + leftOrRight*(angleError - distError));
+    left_front_motor.writeMicroseconds(1500 - sonarError + leftOrRight*(angleError - distError));
     left_rear_motor.writeMicroseconds(1500 - sonarError + leftOrRight*(angleError + distError));
     sonarReading = HC_SR04_range();
     if(abs(currentDistError) < 2){
@@ -969,10 +967,10 @@ int SpeedCap(float speed,int maxSpeed){
 
 //-----------------------rotate---------------
 void rotate() {
-  left_font_motor.writeMicroseconds(1500 + speed_val); 
+  left_front_motor.writeMicroseconds(1500 + speed_val); 
   left_rear_motor.writeMicroseconds(1500 + speed_val); 
   right_rear_motor.writeMicroseconds(1500 + speed_val); 
-  right_font_motor.writeMicroseconds(1500 + speed_val);
+  right_front_motor.writeMicroseconds(1500 + speed_val);
 }
 //--------------------------rotate-------------
 
@@ -1057,4 +1055,122 @@ void coordinateGenerator(float readingIR, float readingSonar){
   }
   serialOutput(x,y, 0);
   //Do Whatever With x and y
+}
+
+void read_gyro() {
+  // convert the 0-1023 signal to 0-5v
+  gyroRate = (analogRead(sensorPin)*gyroSupplyVoltage)/1023; 
+  // find the voltage offset the value of voltage when gyro is zero (still)
+  gyroRate -= (gyroZeroVoltage/1023 * gyroSupplyVoltage); 
+  // read out voltage divided the gyro sensitivity to calculate the angular velocity 
+  // (Gyro not mounted @ CoM, may need to adjust to find angular velocity )
+  float angularVelocity = gyroRate/ gyroSensitivity; // from Data Sheet, gyroSensitivity is 0.007 V/dps
+    
+  // if the angular velocity is less than the threshold, ignore it
+  if (angularVelocity >= rotationThreshold || angularVelocity <= -rotationThreshold)
+  {
+      // we are running a loop in T (of T/1000 second).
+      float angleChange = angularVelocity/(1000/T);
+      currentAngle += angleChange; 
+  }
+    
+  // keep the angle between 0-360
+  if (currentAngle < 0)
+  {currentAngle += 360;}   
+  else if (currentAngle > 359)
+  {currentAngle -= 360;}
+}
+
+void corner_finder() {
+  float IRDist = longFront.getDistance();
+
+  if (rotating)
+  {
+    rotate();
+    if (distanceUS >= maxDist)
+    {
+      
+      if((IRDist >= 5) && (IRDist <= 80))
+      {
+      maxDist = distanceUS;
+      maxAngle = currentAngle;
+      //maxIR = 0;
+      }
+      else
+      {
+        maxAngle = currentAngle - 180;
+        if(maxAngle <= 0)
+        {
+          maxAngle += 360;
+        }
+      }
+    }
+  }
+
+  if (currentAngle >= 180)
+  {
+    if(currentAngle <= 270)
+    {
+      has180 = 1;
+    }
+  }
+
+  if (currentAngle <= 30)
+  {
+    if (has180)
+    {
+      rotating = 0;
+      align = 1;
+    }
+  }
+
+  if(align)
+  {
+    rotate();
+    if (currentAngle >= (maxAngle - 5))
+    {
+      if (currentAngle <= (maxAngle + 5))
+      {
+        align = 0;
+        corner = 1;
+      }
+    }
+  }
+
+  if(corner)
+  {
+    corner_align(15);
+    //exit condition should switch area_coverage to 1
+  }
+}
+
+void corner_align (float edgeDist)
+{
+  float distanceLR = longRear.getDistance();
+  float distanceLF = longFront.getDistance();
+  
+  static int maxSpeed = 500;
+  static int currentMaxSpeed = 100;
+
+  if(currentMaxSpeed < maxSpeed++){
+    currentMaxSpeed = currentMaxSpeed + 20;
+  } else {
+    currentMaxSpeed = 500;
+  }
+  
+  float angleError = SpeedCap(20 * (distanceLR - distanceLF), currentMaxSpeed);
+  float edgeError = SpeedCap(20 * (edgeDist - distanceLF), currentMaxSpeed - abs(angleError));
+  float distError = SpeedCap(20 * (distanceUS - (198 - (24 + edgeDist))), currentMaxSpeed - abs(angleError) - abs(distError));
+
+  if(distError >= 200)
+  {
+    distError = 200;
+  }
+
+
+  
+  left_front_motor.writeMicroseconds(1500 + distError + angleError + edgeError);
+  left_rear_motor.writeMicroseconds(1500 + distError + angleError - edgeError);
+  right_rear_motor.writeMicroseconds(1500 - distError + angleError - edgeError);
+  right_front_motor.writeMicroseconds(1500 - distError + angleError + edgeError);
 }

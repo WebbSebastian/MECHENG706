@@ -954,6 +954,7 @@ void straight_drive (float distanceLS, float distanceLF, float distanceUS, float
 
 int SpeedCap(float speed,int maxSpeed){
   int adjustedSpeed = speed;
+  
   if (speed > maxSpeed){
     adjustedSpeed = maxSpeed;
   }
