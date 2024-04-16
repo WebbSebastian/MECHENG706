@@ -1236,7 +1236,7 @@ void coordinateGenerator(float readingIR, float readingSonar){
 
   //put a 100ms delay between each reading so less noisy
   if((millis() - prevPrint) > 100)
-    SerialCom->print(x); SerialCom->print(", "); SerialCom->println(y);
+    {SerialCom->print(x); SerialCom->print(", "); SerialCom->println(y);}
   
   prevPrint = millis();
   //serialOutput(x, y, 0);
