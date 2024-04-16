@@ -1,3 +1,5 @@
+int x = 1;
+
 bool priorToTurn = true;
 float yDistBeforeTurn = 0;
 float sonarDistBeforeTurn =0;
@@ -47,9 +49,9 @@ class Sensor {
        }
      } else { //LONG
       if(isFront){//LONG FRONT
-       cm = 6.292739 + (162.0963 - 6.292739)/(1 + pow((valADC/61.49072),1.563003));
+       cm = 7.619021 + (101.53)/(1 + pow((valADC/93.30364),1.84825));
       }else{ // LONG REAR
-       cm = 7.170986 + (119.0328 - 7.170986)/(1 + pow((valADC/81.88624),1.728431));
+       cm =  6.899497 + (96.76)/(1 + pow((valADC/97.56561),1.884577));
       }
      }
      return cm;
@@ -139,7 +141,7 @@ float currentAngle = 0;     // current angle calculated by angular velocity inte
 
 
 //PID Parameters
-float desiredAngle = 210;
+float desiredAngle = 180;
 float ur = 0;
 
 float error = 0;
@@ -274,7 +276,8 @@ void setup(void)
   delay(1000); //settling time but no really needed
 
    // start serial communication
-  
+  error = 180;
+
 }
 
 void loop(void) //main loop
@@ -316,45 +319,57 @@ void loop(void) //main loop
   serialOutput(99, 99, 999);
   //straight_drive(distanceLS, distanceLF, distanceUS);
   if(x == 1){
-  goToDistFromWall(shortFront, shortRear, 8);
-   _delay_ms(100);
-  driveAtDistFromWall(shortFront, shortRear, 8, 5);
-  _delay_ms(100);
-  goToDistFromWall(shortFront, shortRear, 18);
-  _delay_ms(100);
-  driveAtDistFromWall(shortFront, shortRear, 18, 170);
-  _delay_ms(100);
-  goToDistFromWall(shortFront, shortRear, 28);
-  _delay_ms(100);
-  driveAtDistFromWall(longFront, longRear, 28, 5);
-  _delay_ms(100);
-  goToDistFromWall(longFront, longRear, 38);
-  _delay_ms(100);
-  driveAtDistFromWall(longFront, longRear, 38, 170);
-  _delay_ms(100);
-  goToDistFromWall(longFront, longRear, 48);
-  _delay_ms(100);
-  driveAtDistFromWall(longFront, longRear, 48, 5);
-  _delay_ms(100);
-  goToDistFromWall(longFront, longRear, 55);
-  _delay_ms(100);
-  driveAtDistFromWall(longFront, longRear, 55, 170);  
 
-  }
-  // Serial.print("short front reading = ");
-    // Serial.println(shortFront.getDistanceMean());
-    // delay(1000);
-    // Serial.print("long front reading = ");
-    // Serial.println(longFront.getDistanceMean());
-    // delay(1000);
-    // Serial.print("short rear reading = ");
-    // Serial.println(shortRear.getDistanceMean());
-    // delay(1000);
-    // Serial.print("long rear reading = ");
-    // Serial.println(longRear.getDistanceMean());
-    // delay(1000);
-  x = 0;
-  while(currentAngle < 206){
+  goToDistFromWall(shortFront, shortRear, 8);
+   _delay_ms(10);
+
+   reverse();
+   delay(300);
+   stop();
+
+  driveAtDistFromWall(shortFront, shortRear, 8, 5);
+  _delay_ms(10);
+  goToDistFromWall(shortFront, shortRear, 18);
+  _delay_ms(10);
+
+  forward();
+   delay(300);
+   stop();
+
+  driveAtDistFromWall(shortFront, shortRear, 18, 170);
+  _delay_ms(10);
+  goToDistFromWall(longFront, longRear, 28);
+  _delay_ms(10);
+
+  reverse();
+   delay(300);
+   stop();
+
+  driveAtDistFromWall(longFront, longRear, 28, 5);
+  _delay_ms(10);
+  goToDistFromWall(longFront, longRear, 38);
+  _delay_ms(10);
+
+  forward();
+   delay(300);
+   stop();
+
+  driveAtDistFromWall(longFront, longRear, 38, 170);
+  _delay_ms(10);
+  goToDistFromWall(longFront, longRear, 48);
+
+  reverse();
+   delay(300);
+   stop();
+
+  _delay_ms(10);
+  driveAtDistFromWall(longFront, longRear, 48, 5);
+
+  yDistBeforeTurn = longRear.getDistanceAveraged();
+  sonarDistBeforeTurn = HC_SR04_range();
+
+  while(error > 10){
+
     error = desiredAngle - currentAngle;
     errorDiff = (error - prevError) / T;
     errorInt = errorInt + error * T;
@@ -377,18 +392,86 @@ void loop(void) //main loop
     if (angularVelocity >= rotationThreshold || angularVelocity <= -rotationThreshold)
     {
         // we are running a loop in T (of T/1000 second).
-        float angleChange = angularVelocity/(1000/T) / 8;
+        float angleChange = angularVelocity*0.01;
         currentAngle += angleChange; 
     }
-
+    
     delay(10);
   }
-  
+  stop();
+
+  priorToTurn = false;
+  yDistAfterTurn = longRear.getDistanceMean();
+  sonarDistAfterTurn = HC_SR04_range();
+
+  speed_val =200;
+
+  goToDistFromWall(longFront, longRear, 48);
+  delay(10);
+   reverse();
+   delay(300);
+   stop();
+
+  driveAtDistFromWall(longFront, longRear,48, 5); 
+  goToDistFromWall(longFront, longRear, 38);  
+
+  delay(10);
+  forward();
+   delay(300);
+   stop();
+
+  driveAtDistFromWall(longFront, longRear,38, 170); 
+  delay(10);
+  goToDistFromWall(longFront, longRear, 28);  
+
+  delay(10);
+  reverse();
+   delay(300);
+   stop();
+
+  driveAtDistFromWall(longFront, longRear,28, 5); 
+  delay(10);
+  goToDistFromWall(shortFront, shortRear, 18); 
+
+  delay(10);
+  forward();
+   delay(300);
+   stop();
+
+  driveAtDistFromWall(shortFront, shortRear,18, 170); 
+  delay(10);
+  goToDistFromWall(shortFront, shortRear, 8);  
+
+  delay(10);
+  reverse();
+   delay(300);
+   stop();
+
+  driveAtDistFromWall(shortFront, shortRear,8, 5); 
+
+  }
+
+
+  x = 0;
   Serial.print("exit");
-  goToDistFromWall(longFront, longRear, 30);  // CHANGE DISTANCE
-  driveAtDistFromWall(longFront, longRear,30, 170); // CHANGE DISTANCE
+
   _delay_ms(100);
+//  while(1){
+
  
+//     // Serial.print("short front reading = ");
+//     // Serial.println(shortFront.getDistanceMean());
+//     // delay(1000);
+//     Serial.print("long front reading = ");
+//     Serial.println(longFront.getADCMean());
+//     //delay(1000);
+//     // Serial.print("short rear reading = ");
+//     // Serial.println(shortRear.getDistanceMean());
+//     // delay(1000);
+//     Serial.print("long rear reading = ");
+//     Serial.println(longRear.getADCMean());
+//     //delay(1000);
+//  }
 
 }
 
@@ -671,6 +754,20 @@ void strafe_right ()
   right_font_motor.writeMicroseconds(1500 - speed_val);
 }
 
+void reverse ()
+{
+  left_font_motor.writeMicroseconds(1500 + speed_val);
+  left_rear_motor.writeMicroseconds(1500 + speed_val);
+  right_rear_motor.writeMicroseconds(1500 - speed_val);
+  right_font_motor.writeMicroseconds(1500 - speed_val);
+}
+void forward ()
+{
+  left_font_motor.writeMicroseconds(1500 - speed_val);
+  left_rear_motor.writeMicroseconds(1500 - speed_val);
+  right_rear_motor.writeMicroseconds(1500 + speed_val);
+  right_font_motor.writeMicroseconds(1500 + speed_val);
+}
 void strafe_left ()
 {
   left_font_motor.writeMicroseconds(1500 + speed_val);
@@ -706,13 +803,13 @@ void driveAtDistFromWall(Sensor frontSensor, Sensor rearSensor, float distFromWa
   float readingRearIR = 0;
 
   //Proportional gains
-  int Ka = 30;
-  int Kd = 30;
-  int Ks = 6;
+  int Ka = 25;
+  int Kd = 50;
+  int Ks = 15;
 
   //integral gains
-  float KaI = 0.3;
-  float KdI = 0.3;
+  float KaI = 0.05;
+  float KdI = 0.8;
   float KsI = 0.2;
   
   // variable for exit condition
@@ -835,12 +932,12 @@ void goToDistFromWall(Sensor frontSensor, Sensor rearSensor, float distFromWall)
   //Proportional gains
   int Ka = 0;
   int Kd = 20;
-  int Ks = 6;
+  int Ks = 0;
 
   //integral gains
   float KaI = 0;
-  float KdI = 0.15;
-  float KsI = 0.5;
+  float KdI = 0.2;
+  float KsI = 0;
   
   // variable for exit condition
   int withinRange = 0;
@@ -1046,7 +1143,7 @@ void serialOutput(int32_t Value1, int32_t Value2, int32_t Value3)
 //---------------------------------------------------------------------------------------------------------//
 void coordinateGenerator(float readingIR, float readingSonar){
   float distFromSonarToMiddle = 10; //cm
-  float distFromIRsToMiddle = 10; //cm
+  float distFromIRsToMiddle = 7; //cm
   float x,y = 0;
   if(priorToTurn){
     x = readingSonar + distFromSonarToMiddle;
@@ -1058,3 +1155,4 @@ void coordinateGenerator(float readingIR, float readingSonar){
   serialOutput(x,y, 0);
   //Do Whatever With x and y
 }
+// ------------------------------------------------------------------------------------------------------------//
