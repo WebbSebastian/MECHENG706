@@ -247,9 +247,10 @@ int pos = 0;
 float readingFrontRight,readingRearRight,readingFrontLeft,readingRearLeft;
 void setup(void)
 {
-  Serial.begin(115200);
+  //Serial.begin(115200);
   BluetoothSerial.begin(115200);
   turret_motor.attach(11);
+
   pinMode(LED_BUILTIN, OUTPUT);
   //-------------rotate ode added----------
     // this section is initialize the sensor, find the value of voltage when gyro is zero
@@ -257,8 +258,8 @@ void setup(void)
   float sum = 0; 
   pinMode(sensorPin,INPUT); 
   
-  Serial.println("please keep the sensor still for calibration");
-  Serial.println("get the gyro zero voltage");
+  //Serial.println("please keep the sensor still for calibration");
+  //Serial.println("get the gyro zero voltage");
 
   for (i=0;i<100;i++) // read 100 values of voltage when gyro is at still, to calculate the zero-drift. 
   {
@@ -303,14 +304,14 @@ void loop(void) //main loop
   };
 
   //Serial exit condition
-  if (Serial.available()) // Check for input from terminal
+  /*if (Serial.available()) // Check for input from terminal
   {
     serialRead = Serial.read(); // Read input
     if (serialRead==49) // Check for flag to execute, 49 is ascii for 1, stop serial printing
     {
       Serial.end(); // end the serial communication to get the sensor data
     }
-  }
+  }*/
  
   
   read_gyro();
@@ -791,8 +792,8 @@ float HC_SR04_range()
 
 void Analog_Range_A4()
 {
-  SerialCom->print("Analog Range A4:");
-  SerialCom->println(analogRead(A4));
+  //SerialCom->print("Analog Range A4:");
+  //SerialCom->println(analogRead(A4));
 }
 
 #ifndef NO_READ_GYRO
@@ -994,7 +995,6 @@ void driveAtDistFromWall(Sensor frontSensor, Sensor rearSensor, float distFromWa
     }
     _delay_ms(2);
   }
-  Serial.println("Exit");
   stop();
   return;
 } 
@@ -1135,7 +1135,7 @@ void goToDistFromWall(Sensor frontSensor, Sensor rearSensor, float distFromWall)
     _delay_ms(3);
 
   }
-  Serial.println("Exit");
+
   stop();
   return;
 } 
@@ -1240,7 +1240,7 @@ void coordinateGenerator(float readingIR, float readingSonar){
     x = sonarDistBeforeTurn + sonarDistAfterTurn - readingSonar;
     y =  yDistBeforeTurn + yDistAfterTurn - readingIR;
   }
-  bluetoothSerialOutputMonitor(x,y, 0);
+  bluetoothSerialOutputMonitor(x, y, 0);
   //Do Whatever With x and y
 }
 
