@@ -41,15 +41,15 @@ class Sensor {
      int valADC = getADC();
      if (isShort){//SHORT
        if(isFront){//SHORT FRONT
-       cm = 2.713274 + (48662440 - 2.713274)/(1 + pow((valADC/0.004403527),1.440451));
+       cm = -2.405813 + (6399118 - -2.405813)/(1 + pow((valADC/0.0001292224),0.9124548));
        }else{//SHORT REAR
-       cm = 4.184835 + (53857500 - 4.184835)/(1 + pow((valADC/0.05076238),1.913511));
+       cm = 0.2806072 + (22345370 - 0.2806072)/(1 + pow((valADC/0.001017839),1.190963));
        }
      } else { //LONG
       if(isFront){//LONG FRONT
-       cm = 6.292739 + (162.0963 - 6.292739)/(1 + pow((valADC/61.49072),1.563003));
+       cm = 7.619021 + (101.53)/(1 + pow((valADC/93.30364),1.84825));
       }else{ // LONG REAR
-       cm = 7.170986 + (119.0328 - 7.170986)/(1 + pow((valADC/81.88624),1.728431));
+       cm =  6.899497 + (96.76)/(1 + pow((valADC/97.56561),1.884577));
       }
      }
      return cm;
@@ -148,7 +148,7 @@ float currentAngle = 0;     // current angle calculated by angular velocity inte
 
 
 //PID Parameters
-float desiredAngle = 210;
+float desiredAngle = 180;
 float ur = 0;
 
 float error = 0;
@@ -204,7 +204,7 @@ Servo right_rear_motor;  // create servo object to control Vex Motor Controller 
 Servo right_front_motor;  // create servo object to control Vex Motor Controller 29
 Servo turret_motor;
 
-int speed_val = 200;
+int speed_val = 400;
 int speed_change;
 
 // Variables for straight drive error
@@ -343,22 +343,24 @@ void loop(void) //main loop
         }
       }
     }
-  }
+  
 
-  if (currentAngle >= 180)
-  {
-    if(currentAngle <= 270)
+    if (currentAngle >= 180)
     {
-      has180 = 1;
+      if(currentAngle <= 270)
+      {
+        has180 = 1;
+      }
     }
-  }
 
-  if (currentAngle <= 30)
-  {
-    if (has180)
+    if (currentAngle <= 30)
     {
-      rotating = 0;
-      align = 1;
+      if (has180)
+      {
+        rotating = 0;
+        align = 1;
+      
+      }
     }
   }
 
@@ -380,10 +382,11 @@ void loop(void) //main loop
     corner_align(15);
     if (IRDist <= 18)
     {
-      if (distanceUS >= 198 - (24 + 18))
+      if (distanceUS >= 198 - (24 + 5))
       {
         corner = 0;
         area_coverage = 1;
+
       }
     }
     //exit condition should switch area_coverage to 1
@@ -396,29 +399,122 @@ void loop(void) //main loop
 
   //Path following
   if(area_coverage == 1){
+
   goToDistFromWall(shortFront, shortRear, 8);
-   _delay_ms(100);
+
+   reverse();
+   delay(300);
+   stop();
+
   driveAtDistFromWall(shortFront, shortRear, 8, 5);
-  _delay_ms(100);
   goToDistFromWall(shortFront, shortRear, 18);
-  _delay_ms(100);
+
+  forward();
+   delay(300);
+   stop();
+
   driveAtDistFromWall(shortFront, shortRear, 18, 170);
-  _delay_ms(100);
-  goToDistFromWall(shortFront, shortRear, 28);
-  _delay_ms(100);
+  goToDistFromWall(longFront, longRear, 28);
+
+
+  reverse();
+   delay(300);
+   stop();
+
   driveAtDistFromWall(longFront, longRear, 28, 5);
-  _delay_ms(100);
   goToDistFromWall(longFront, longRear, 38);
-  _delay_ms(100);
+
+  forward();
+   delay(300);
+   stop();
+
   driveAtDistFromWall(longFront, longRear, 38, 170);
-  _delay_ms(100);
   goToDistFromWall(longFront, longRear, 48);
-  _delay_ms(100);
+
+  reverse();
+   delay(300);
+   stop();
+
   driveAtDistFromWall(longFront, longRear, 48, 5);
-  _delay_ms(100);
-  goToDistFromWall(longFront, longRear, 55);
-  _delay_ms(100);
-  driveAtDistFromWall(longFront, longRear, 55, 170);  
+
+  yDistBeforeTurn = longRear.getDistanceAveraged();
+  sonarDistBeforeTurn = HC_SR04_range();
+  error =180;
+  currentAngle = 0;
+  while(abs(error) > 10){
+
+    error = desiredAngle - currentAngle;
+    errorDiff = (error - prevError) / T;
+    errorInt = errorInt + error * T;
+    ur = Pr * error + Ir * errorInt + Dr * errorDiff;
+    if (ur > 500)
+        ur = 500;
+    else if (ur < -500)
+        ur = -500;
+
+    speed_val = (int)ur;
+    prevError = error;
+    rotate();    
+    gyroRate = (analogRead(sensorPin)*gyroSupplyVoltage)/1023; 
+    // find the voltage offset the value of voltage when gyro is zero (still)
+    gyroRate -= (gyroZeroVoltage/1023 * gyroSupplyVoltage); 
+    // read out voltage divided the gyro sensitivity to calculate the angular velocity 
+    float angularVelocity = gyroRate/ gyroSensitivity; // from Data Sheet, gyroSensitivity is 0.007 V/dps
+    
+    // if the angular velocity is less than the threshold, ignore it
+    if (angularVelocity >= rotationThreshold || angularVelocity <= -rotationThreshold)
+    {
+        // we are running a loop in T (of T/1000 second).
+        float angleChange = angularVelocity*0.01;
+        currentAngle += angleChange; 
+    }
+    
+    delay(10);
+  }
+  stop();
+
+  priorToTurn = false;
+  yDistAfterTurn = longRear.getDistanceMean();
+  sonarDistAfterTurn = HC_SR04_range();
+
+  speed_val =300;
+
+  goToDistFromWall(longFront, longRear, 48);
+   reverse();
+   delay(300);
+   stop();
+
+  driveAtDistFromWall(longFront, longRear,48, 5); 
+  goToDistFromWall(longFront, longRear, 38);  
+
+  forward();
+   delay(300);
+   stop();
+
+  driveAtDistFromWall(longFront, longRear,38, 170); 
+  goToDistFromWall(longFront, longRear, 28);  
+
+
+  reverse();
+   delay(300);
+   stop();
+
+  driveAtDistFromWall(longFront, longRear,28, 5); 
+  goToDistFromWall(shortFront, shortRear, 18); 
+
+  forward();
+   delay(300);
+   stop();
+
+  driveAtDistFromWall(shortFront, shortRear,18, 170); 
+  goToDistFromWall(shortFront, shortRear, 8);  
+
+  reverse();
+   delay(300);
+   stop();
+
+  driveAtDistFromWall(shortFront, shortRear,8, 5);  
+  area_coverage = 0;
   }
   
 
@@ -737,6 +833,20 @@ void stop() //Stop
   right_rear_motor.writeMicroseconds(1500);
   right_front_motor.writeMicroseconds(1500);
 }
+void reverse ()
+{
+  left_front_motor.writeMicroseconds(1500 + speed_val);
+  left_rear_motor.writeMicroseconds(1500 + speed_val);
+  right_rear_motor.writeMicroseconds(1500 - speed_val);
+  right_front_motor.writeMicroseconds(1500 - speed_val);
+}
+void forward ()
+{
+  left_front_motor.writeMicroseconds(1500 - speed_val);
+  left_rear_motor.writeMicroseconds(1500 - speed_val);
+  right_rear_motor.writeMicroseconds(1500 + speed_val);
+  right_front_motor.writeMicroseconds(1500 + speed_val);
+}
 void strafe_right ()
 {
   left_front_motor.writeMicroseconds(1500 - speed_val);
@@ -780,13 +890,13 @@ void driveAtDistFromWall(Sensor frontSensor, Sensor rearSensor, float distFromWa
   float readingRearIR = 0;
 
   //Proportional gains
-  int Ka = 30;
-  int Kd = 30;
-  int Ks = 6;
+  int Ka = 40;
+  int Kd = 50;
+  int Ks = 25;
 
   //integral gains
-  float KaI = 0.3;
-  float KdI = 0.3;
+  float KaI = 0.05;
+  float KdI = 0.4;
   float KsI = 0.2;
   
   // variable for exit condition
@@ -843,14 +953,15 @@ void driveAtDistFromWall(Sensor frontSensor, Sensor rearSensor, float distFromWa
 
     if ((sonarReading > 130)){ // ends of the table
       rearSensor.prevDistanceStored = false;
-      currentDistError = 0;
+      currentDistError = readingFrontIR - distFromWall;
       distErrorIntegral = 0;
       currentAngleError = 0;
       angleErrorIntegral = 0;
+      
       coordinateGenerator(readingFrontIR, sonarReading);
     } else if (sonarReading < 20){ // ends of the table
       frontSensor.prevDistanceStored = false;
-      currentDistError = 0;
+      currentDistError = readingRearIR - distFromWall;
       distErrorIntegral = 0;
       currentAngleError = 0;
       angleErrorIntegral = 0;   
@@ -908,13 +1019,13 @@ void goToDistFromWall(Sensor frontSensor, Sensor rearSensor, float distFromWall)
 
   //Proportional gains
   int Ka = 0;
-  int Kd = 20;
-  int Ks = 6;
+  int Kd = 30;
+  int Ks = 0;
 
   //integral gains
   float KaI = 0;
-  float KdI = 0.15;
-  float KsI = 0.5;
+  float KdI = 0.5;
+  float KsI = 0;
   
   // variable for exit condition
   int withinRange = 0;
@@ -948,7 +1059,7 @@ void goToDistFromWall(Sensor frontSensor, Sensor rearSensor, float distFromWall)
     sonarReading += HC_SR04_range();
     sonarReading = sonarReading/3;
 
-  while(withinRange < 10){
+  while(withinRange < 5){
     if(currentMaxSpeed < maxSpeed++){
       currentMaxSpeed = currentMaxSpeed + 20;
     } else {
@@ -1016,12 +1127,12 @@ void goToDistFromWall(Sensor frontSensor, Sensor rearSensor, float distFromWall)
     left_front_motor.writeMicroseconds(1500 - sonarError + leftOrRight*(angleError - distError));
     left_rear_motor.writeMicroseconds(1500 - sonarError + leftOrRight*(angleError + distError));
     sonarReading = HC_SR04_range();
-    if(abs(currentDistError) < 2){
+    if(abs(currentDistError) < 3){
       withinRange++;
     } else {
       withinRange = 0;
     }
-    _delay_ms(2);
+    _delay_ms(3);
 
   }
   Serial.println("Exit");
@@ -1129,7 +1240,7 @@ void coordinateGenerator(float readingIR, float readingSonar){
     x = sonarDistBeforeTurn + sonarDistAfterTurn - readingSonar;
     y =  yDistBeforeTurn + yDistAfterTurn - readingIR;
   }
-  serialOutput(x,y, 0);
+  bluetoothSerialOutputMonitor(x,y, 0);
   //Do Whatever With x and y
 }
 
@@ -1193,7 +1304,7 @@ void corner_align (float edgeDist)
   
   float angleError = SpeedCap(20 * (distanceLR - distanceLF), currentMaxSpeed);
   float edgeError = SpeedCap(20 * (edgeDist - distanceLF), currentMaxSpeed - abs(angleError));
-  float distError = SpeedCap(20 * (distanceUS - (198 - (24 + edgeDist))), currentMaxSpeed - abs(angleError) - abs(distError));
+  float distError = SpeedCap(20 * (distanceUS - (198 - (24 + edgeDist-10))), currentMaxSpeed - abs(angleError) - abs(distError));
 
   if(distError >= 200)
   {
