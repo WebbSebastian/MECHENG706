@@ -133,6 +133,7 @@ void setup(void)
 
 void loop(void) //main loop
 {
+  
   static STATE machine_state = INITIALISING;
   //Finite-state machine Code
   switch (machine_state) {
@@ -156,8 +157,8 @@ void loop(void) //main loop
     }
   }
 
-
-
+  */
+  /*
   // convert the 0-1023 signal to 0-5v
   gyroRate = (analogRead(sensorPin)*gyroSupplyVoltage)/1023; 
   // find the voltage offset the value of voltage when gyro is zero (still)
@@ -199,34 +200,41 @@ void loop(void) //main loop
   //straight_drive(distanceLF, distanceLS, distanceUS, dir, edgeDist); 
   //straight_drive(distanceLS, distanceLF, distanceUS, dir, edgeDist);
   //straight_align(distanceLS, distanceLF, edgeDist);
+  */
 
+  float adc1 = analogRead(pt1);
+  delay(1000);
+  float adc2 = analogRead(pt2);
+  delay(1000);
+  float adc3 = analogRead(pt3);
+  delay(1000);
+  float adc4 = analogRead(pt4);
 
-  
+  float volts1 = adc1*5.0/1024.0;
+  float volts2 = adc2*5.0/1024.0;
+  float volts3 = adc3*5.0/1024.0;
+  float volts4 = adc4*5.0/1024.0;
 
-  float volts1 = analogRead(pt1)*5.0/1024.0;
-  Serial.print("analogyADC ");
-  Serial.print(analogRead(pt1));
+  Serial.print("analog ADC ");
+  Serial.print(adc1);
   Serial.print(" ");
   Serial.print("A4 = ");
   Serial.println(volts1);
 
-  float volts2 = analogRead(pt2)*5.0/1024.0;
-  Serial.print("analogyADC ");
-  Serial.print(analogRead(pt2));
+  Serial.print("analog ADC ");
+  Serial.print(adc2);
   Serial.print(" ");
   Serial.print("A5 = ");
   Serial.println(volts2);
-
-  float volts3 = analogRead(pt3)*5.0/1024.0;
-  Serial.print("analogyADC ");
-  Serial.print(analogRead(pt3));
+  
+  Serial.print("analog ADC ");
+  Serial.print(adc3);
   Serial.print(" ");
   Serial.print("A6 = ");
   Serial.println(volts3);
 
-  float volts4 = analogRead(pt4)*5.0/1024.0;
-  Serial.print("analogyADC ");
-  Serial.print(analogRead(pt4));
+  Serial.print("analog ADC ");
+  Serial.print(adc4);
   Serial.print(" ");
   Serial.print("A7 = ");
   Serial.println(volts4);
@@ -243,7 +251,7 @@ void loop(void) //main loop
 
   //delay(100);
 
-
+/*
   if(IR_SERIAL){ //Serial controll for the IR sensor
 
     Serial.print("SF: "); Serial.print(distanceSF); Serial.print("cm  "); Serial.print(ADCsignalSF); Serial.print("      ");
@@ -254,7 +262,7 @@ void loop(void) //main loop
     delay(50);
 
   }
-  
+  */
 }
 
 
@@ -488,15 +496,15 @@ float HC_SR04_range()
 
 void Analog_Range_A4()
 {
-  SerialCom->print("Analog Range A4:");
-  SerialCom->println(analogRead(A4));
+  //SerialCom->print("Analog Range A4:");
+  //SerialCom->println(analogRead(A4));
 }
 
 #ifndef NO_READ_GYRO
 void GYRO_reading()
 {
-  SerialCom->print("GYRO A3:");
-  SerialCom->println(analogRead(A3));
+  //SerialCom->print("GYRO A3:");
+  //SerialCom->println(analogRead(A3));
 }
 #endif
 
@@ -753,9 +761,6 @@ void straight_drive (float distanceLS, float distanceLF, float distanceUS, float
     {
       stop();
     } 
-  }
-
-   
+  } 
   
 }
-
