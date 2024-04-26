@@ -53,10 +53,10 @@ const int ECHO_PIN = 49;
 // Anything over 400 cm (23200 us pulse) is "out of range". Hit:If you decrease to this the ranging sensor but the timeout is short, you may not need to read up to 4meters.
 const unsigned int MAX_DIST = 23200;
 
-Servo left_font_motor;  // create servo object to control Vex Motor Controller 29
+Servo left_front_motor;  // create servo object to control Vex Motor Controller 29
 Servo left_rear_motor;  // create servo object to control Vex Motor Controller 29
 Servo right_rear_motor;  // create servo object to control Vex Motor Controller 29
-Servo right_font_motor;  // create servo object to control Vex Motor Controller 29
+Servo right_front_motor;  // create servo object to control Vex Motor Controller 29
 Servo turret_motor;
 
 int speed_val = 200;
@@ -109,6 +109,12 @@ float current_Angle = 0;     // current angle calculated by angular velocity int
 #define GYRO_SERIAL 0
 
 int pos = 0;
+
+float adc1 = 0;
+float adc2 = 0;
+float adc3 = 0;
+float adc4 = 0;
+
 void setup(void)
 {
   turret_motor.attach(11);
@@ -157,7 +163,7 @@ void loop(void) //main loop
     }
   }
 
-  */
+  
   /*
   // convert the 0-1023 signal to 0-5v
   gyroRate = (analogRead(sensorPin)*gyroSupplyVoltage)/1023; 
@@ -202,18 +208,26 @@ void loop(void) //main loop
   //straight_align(distanceLS, distanceLF, edgeDist);
   */
 
-  float adc1 = analogRead(pt1);
-  delay(1000);
-  float adc2 = analogRead(pt2);
-  delay(1000);
-  float adc3 = analogRead(pt3);
-  delay(1000);
-  float adc4 = analogRead(pt4);
+  //dummy reading => for some reason if A0 (battery health) is called in-between, Vref uses 5V, otherwise uses 4.2V
+  analogRead(pt1);
+  delay(500);
 
-  float volts1 = adc1*5.0/1024.0;
-  float volts2 = adc2*5.0/1024.0;
-  float volts3 = adc3*5.0/1024.0;
-  float volts4 = adc4*5.0/1024.0;
+
+  adc1 = analogRead(pt1);
+  //analogRead(A0);
+  delay(500);
+  adc2 = analogRead(pt2);
+  //analogRead(A0);
+  delay(500);
+  adc3 = analogRead(pt3);
+  //analogRead(A0);
+  delay(500);
+  adc4 = analogRead(pt4);
+
+  float volts1 = adc1*4.2/1024.0;
+  float volts2 = adc2*4.2/1024.0;
+  float volts3 = adc3*4.2/1024.0;
+  float volts4 = adc4*4.2/1024.0;
 
   Serial.print("analog ADC ");
   Serial.print(adc1);
@@ -288,10 +302,10 @@ STATE running() {
 
     SerialCom->println("RUNNING---------");
     speed_change_smooth();
-    Analog_Range_A4();
+    //Analog_Range_A4();
 
     #ifndef NO_READ_GYRO
-      GYRO_reading();
+      //GYRO_reading();
     #endif
 
     #ifndef NO_HC-SR04
@@ -594,10 +608,10 @@ void read_serial_command()
 
 void disable_motors()
 {
-  left_font_motor.detach();  // detach the servo on pin left_front to turn Vex Motor Controller 29 Off
+  left_front_motor.detach();  // detach the servo on pin left_front to turn Vex Motor Controller 29 Off
   left_rear_motor.detach();  // detach the servo on pin left_rear to turn Vex Motor Controller 29 Off
   right_rear_motor.detach();  // detach the servo on pin right_rear to turn Vex Motor Controller 29 Off
-  right_font_motor.detach();  // detach the servo on pin right_front to turn Vex Motor Controller 29 Off
+  right_front_motor.detach();  // detach the servo on pin right_front to turn Vex Motor Controller 29 Off
 
   pinMode(left_front, INPUT);
   pinMode(left_rear, INPUT);
@@ -607,118 +621,118 @@ void disable_motors()
 
 void enable_motors()
 {
-  left_font_motor.attach(left_front);  // attaches the servo on pin left_front to turn Vex Motor Controller 29 On
+  left_front_motor.attach(left_front);  // attaches the servo on pin left_front to turn Vex Motor Controller 29 On
   left_rear_motor.attach(left_rear);  // attaches the servo on pin left_rear to turn Vex Motor Controller 29 On
   right_rear_motor.attach(right_rear);  // attaches the servo on pin right_rear to turn Vex Motor Controller 29 On
-  right_font_motor.attach(right_front);  // attaches the servo on pin right_front to turn Vex Motor Controller 29 On
+  right_front_motor.attach(right_front);  // attaches the servo on pin right_front to turn Vex Motor Controller 29 On
 }
 void stop() //Stop
 {
-  left_font_motor.writeMicroseconds(1500);
+  left_front_motor.writeMicroseconds(1500);
   left_rear_motor.writeMicroseconds(1500);
   right_rear_motor.writeMicroseconds(1500);
-  right_font_motor.writeMicroseconds(1500);
+  right_front_motor.writeMicroseconds(1500);
 }
 
 void forward()
 {
-  left_font_motor.writeMicroseconds(1500 + speed_val);
+  left_front_motor.writeMicroseconds(1500 + speed_val);
   left_rear_motor.writeMicroseconds(1500 + speed_val);
   right_rear_motor.writeMicroseconds(1500 - speed_val);
-  right_font_motor.writeMicroseconds(1500 - speed_val);
+  right_front_motor.writeMicroseconds(1500 - speed_val);
 }
 
 void reverse ()
 {
-  left_font_motor.writeMicroseconds(1500 - speed_val);
+  left_front_motor.writeMicroseconds(1500 - speed_val);
   left_rear_motor.writeMicroseconds(1500 - speed_val);
   right_rear_motor.writeMicroseconds(1500 + speed_val);
-  right_font_motor.writeMicroseconds(1500 + speed_val);
+  right_front_motor.writeMicroseconds(1500 + speed_val);
 }
 
 void ccw ()
 {
-  left_font_motor.writeMicroseconds(1500 - speed_val);
+  left_front_motor.writeMicroseconds(1500 - speed_val);
   left_rear_motor.writeMicroseconds(1500 - speed_val);
   right_rear_motor.writeMicroseconds(1500 - speed_val);
-  right_font_motor.writeMicroseconds(1500 - speed_val);
+  right_front_motor.writeMicroseconds(1500 - speed_val);
 }
 
 void cw ()
 {
-  left_font_motor.writeMicroseconds(1500 + speed_val);
+  left_front_motor.writeMicroseconds(1500 + speed_val);
   left_rear_motor.writeMicroseconds(1500 + speed_val);
   right_rear_motor.writeMicroseconds(1500 + speed_val);
-  right_font_motor.writeMicroseconds(1500 + speed_val);
+  right_front_motor.writeMicroseconds(1500 + speed_val);
 }
 
 void strafe_left ()
 {
-  left_font_motor.writeMicroseconds(1500 - speed_val);
+  left_front_motor.writeMicroseconds(1500 - speed_val);
   left_rear_motor.writeMicroseconds(1500 + speed_val);
   right_rear_motor.writeMicroseconds(1500 + speed_val);
-  right_font_motor.writeMicroseconds(1500 - speed_val);
+  right_front_motor.writeMicroseconds(1500 - speed_val);
 }
 
 void strafe_right ()
 {
-  left_font_motor.writeMicroseconds(1500 + speed_val);
+  left_front_motor.writeMicroseconds(1500 + speed_val);
   left_rear_motor.writeMicroseconds(1500 - speed_val);
   right_rear_motor.writeMicroseconds(1500 - speed_val);
-  right_font_motor.writeMicroseconds(1500 + speed_val);
+  right_front_motor.writeMicroseconds(1500 + speed_val);
 }
 
 void diagonal_upright ()
 {
-  left_font_motor.writeMicroseconds(1500 + speed_val);
+  left_front_motor.writeMicroseconds(1500 + speed_val);
   right_rear_motor.writeMicroseconds(1500 - speed_val);
 
   left_rear_motor.writeMicroseconds(1500);
-  right_font_motor.writeMicroseconds(1500);
+  right_front_motor.writeMicroseconds(1500);
 }
 
 void diagonal_upleft ()
 {
   left_rear_motor.writeMicroseconds(1500 + speed_val);
-  right_font_motor.writeMicroseconds(1500 - speed_val);
+  right_front_motor.writeMicroseconds(1500 - speed_val);
 
-  left_font_motor.writeMicroseconds(1500);
+  left_front_motor.writeMicroseconds(1500);
   right_rear_motor.writeMicroseconds(1500);
 }
 
 void diagonal_downright ()
 {
-  right_font_motor.writeMicroseconds(1500 + speed_val);
+  right_front_motor.writeMicroseconds(1500 + speed_val);
   left_rear_motor.writeMicroseconds(1500 - speed_val);
 
-  left_font_motor.writeMicroseconds(1500);
+  left_front_motor.writeMicroseconds(1500);
   right_rear_motor.writeMicroseconds(1500);
 }
 
 void diagonal_downleft ()
 {
-  left_font_motor.writeMicroseconds(1500 - speed_val);
+  left_front_motor.writeMicroseconds(1500 - speed_val);
   right_rear_motor.writeMicroseconds(1500 + speed_val);
 
   left_rear_motor.writeMicroseconds(1500);
-  right_font_motor.writeMicroseconds(1500);
+  right_front_motor.writeMicroseconds(1500);
 }
 
 void rotate ()
 {
-  left_font_motor.writeMicroseconds(1500 + speed_val);
+  left_front_motor.writeMicroseconds(1500 + speed_val);
   left_rear_motor.writeMicroseconds(1500 + speed_val);
   right_rear_motor.writeMicroseconds(1500 + speed_val);
-  right_font_motor.writeMicroseconds(1500 + speed_val);
+  right_front_motor.writeMicroseconds(1500 + speed_val);
 }
 
 void lateral_move (float distanceLS, float distanceLF, float edgeDist, float targetDist, float direction)
 {
   float edgeError = targetDist - edgeDist;
-  left_font_motor.writeMicroseconds(1500 + direction * edgeError);
+  left_front_motor.writeMicroseconds(1500 + direction * edgeError);
   left_rear_motor.writeMicroseconds(1500 - direction * edgeError);
   right_rear_motor.writeMicroseconds(1500 - direction * edgeError);
-  right_font_motor.writeMicroseconds(1500 + direction * edgeError);
+  right_front_motor.writeMicroseconds(1500 + direction * edgeError);
 }
 
 void straight_align (float distanceLS, float distanceLF, float edgeDist)
@@ -726,10 +740,10 @@ void straight_align (float distanceLS, float distanceLF, float edgeDist)
   float angleError = 20 * (distanceLS - distanceLF);
   float edgeError = 20 * (edgeDist - distanceLF);
 
-  left_font_motor.writeMicroseconds(1500 + angleError + edgeError);
+  left_front_motor.writeMicroseconds(1500 + angleError + edgeError);
   left_rear_motor.writeMicroseconds(1500 + angleError - edgeError);
   right_rear_motor.writeMicroseconds(1500 + angleError - edgeError);
-  right_font_motor.writeMicroseconds(1500 + angleError + edgeError);
+  right_front_motor.writeMicroseconds(1500 + angleError + edgeError);
 }
 
 void straight_drive (float distanceLS, float distanceLF, float distanceUS, float direction, float edgeDist)
@@ -741,10 +755,10 @@ void straight_drive (float distanceLS, float distanceLF, float distanceUS, float
   float edgeError = 30 * (edgeDist - distanceLF);
   //int edgeError = 0;
 
-  left_font_motor.writeMicroseconds(1500 + direction * (speed_val) + angleError + edgeError);
+  left_front_motor.writeMicroseconds(1500 + direction * (speed_val) + angleError + edgeError);
   left_rear_motor.writeMicroseconds(1500 + direction * (speed_val) + angleError - edgeError);
   right_rear_motor.writeMicroseconds(1500 - direction * (speed_val) + angleError - edgeError);
-  right_font_motor.writeMicroseconds(1500 - direction * (speed_val) + angleError + edgeError);
+  right_front_motor.writeMicroseconds(1500 - direction * (speed_val) + angleError + edgeError);
 
 
   if (direction > 0)
