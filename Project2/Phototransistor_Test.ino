@@ -45,11 +45,6 @@ const byte right_front = 46;
 //const byte right_rear = 51;
 //const byte right_front = 50;
 
-
-//Default ultrasonic ranging sensor pins, these pins are defined my the Shield
-const int TRIG_PIN = 48;
-const int ECHO_PIN = 49;
-
 // Anything over 400 cm (23200 us pulse) is "out of range". Hit:If you decrease to this the ranging sensor but the timeout is short, you may not need to read up to 4meters.
 const unsigned int MAX_DIST = 23200;
 
@@ -115,9 +110,25 @@ float adc2 = 0;
 float adc3 = 0;
 float adc4 = 0;
 
+//ULTRASONIC TURRET
+//Default ultrasonic ranging sensor pins, these pins are defined my the Shield
+const int TRIG_PIN = 48;
+const int ECHO_PIN = 49;
+int servoPin = 42;
+
+#define USF 0 //Ultrasonic Front
+#define USL 1 //Ultrasonic left
+#define USR 2 //Ultrasonic right
+int UStimer = 0;
+int USTime = 150; //ms min before US reading
+int USstate = USF;//defualt US State 
+int USstatePrev = USL; //set start sweep direction 
+float USsensor[3] = {0,0,0};// US Sensors 
+
 void setup(void)
 {
-  turret_motor.attach(11);
+  
+  turret_motor.attach(servoPin);
   pinMode(LED_BUILTIN, OUTPUT);
 
   // The Trigger pin will tell the sensor to range find
@@ -507,6 +518,32 @@ float HC_SR04_range()
   return cm;
 }
 #endif
+
+void USReading()
+{
+  if (UStimer >= USTime){
+    if(USstate == USF){
+      USsensor[USF] = HC_SR04_range();
+      if(USstatePrev == USL){
+        USstate = USR;
+      }
+      else {
+        USstate = USL;
+      }
+    }
+    else {
+      if (USstate == USL){
+        USsensor[USL] = HC_SR04_range();
+        USstatePrev = USL;
+      }
+      else (USstate == USR){
+        USsensor[USR] = HC_SR04_range();
+        USstatePrev = USL;
+      }
+      USstate = USF;
+    }
+  }
+}
 
 void Analog_Range_A4()
 {
