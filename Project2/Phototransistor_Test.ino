@@ -123,7 +123,7 @@ int UStimer = 0;
 int USTime = 150; //ms min before US reading
 int USstate = USF;//defualt US State 
 int USstatePrev = USL; //set start sweep direction 
-float USsensor[3] = {0,0,0};// US Sensors 
+float USvalues[3] = {0,0,0};// US Sensors 
 
 void setup(void)
 {
@@ -519,31 +519,30 @@ float HC_SR04_range()
 }
 #endif
 
-void USReading()
-{
-  if (UStimer >= USTime){
-    if(USstate == USF){
-      USsensor[USF] = HC_SR04_range();
-      if(USstatePrev == USL){
+void USReading() {
+  if (UStimer >= USTime) {
+    if (USstate == USF) {
+      USvalues[USF] = HC_SR04_range();
+      if (USstatePrev == USL) {
         USstate = USR;
-      }
-      else {
+      } else {
         USstate = USL;
       }
     }
     else {
-      if (USstate == USL){
-        USsensor[USL] = HC_SR04_range();
-        USstatePrev = USL;
+      if (USstate == USL) {
+      USvalues[USL] = HC_SR04_range();
+      USstatePrev = USL;
       }
-      else (USstate == USR){
-        USsensor[USR] = HC_SR04_range();
-        USstatePrev = USL;
+      else if (USstate == USR) {
+      USvalues[USR] = HC_SR04_range();
+      USstatePrev = USL;
       }
       USstate = USF;
     }
   }
 }
+
 
 void Analog_Range_A4()
 {
