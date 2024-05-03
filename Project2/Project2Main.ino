@@ -93,9 +93,17 @@ int pt_adc_vals[4];
 ///////////////IR Boolean ARRAY/////////
 bool ir_obj_detect[4]; //  {FL,FR,RL,RR} 1 if obstacle detected else 0
 
-  int motorCommands[4];
-  int seekMotorCommands[4];
-  int avoidMotorCommands[4];
+// seek and avoid motor commands /////////////
+int motorCommands[4];
+int seekMotorCommands[4];
+int avoidMotorCommands[4];
+
+//// seek state variable ////////
+#define ALIGN 0;
+#define DRIVE 1;
+#define EXTINGUISH 2;
+int seek_state = 0;
+
 int pos = 0;
 void setup(void)
 {
@@ -158,11 +166,26 @@ void ultrasonic(){
   //do something with USsensor[3]
 }
 void seek(){
+  if (seek_state == ALIGN){
+    alignTo();
+  } else if(seek_state == DRIVE){
+    driveTo();
+  } else if(seek_state == EXTINGUISH){
+    extinguish();
+  }
   //using pt array and IR array figure out motor commands
+}
+void alignTo(){
   seekMotorCommands[0] = 1700;
   seekMotorCommands[1] = 1700;
-  seekMotorCommands[2] = 1300;
-  seekMotorCommands[3] = 1300;
+  seekMotorCommands[2] = 1700;
+  seekMotorCommands[3] = 1700;
+}
+void driveTo(){
+
+}
+void extinguish(){
+
 }
 
 void avoid(){
