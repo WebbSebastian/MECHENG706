@@ -104,9 +104,9 @@ int seekMotorCommands[4];
 int avoidMotorCommands[4];
 
 //// seek state variable ////////
-#define ALIGN 0;
-#define DRIVE 1;
-#define EXTINGUISH 2;
+#define ALIGN 0
+#define DRIVE 1
+#define EXTINGUISH 2
 int seek_state = 0;
 
 int pos = 0;
@@ -210,25 +210,49 @@ void rotateServo(int degrees){
 }
 
 void seek(){
-  if (seek_state == 0){
+  if (seek_state == ALIGN){
     alignTo();
-  } else if(seek_state == 1){
+  } else if(seek_state == DRIVE){
     driveTo();
-  } else if(seek_state == 2){
+  } else if(seek_state == EXTINGUISH){
     extinguish();
   }
   //using pt array and IR array figure out motor commands
 }
 void alignTo(){
-  seekMotorCommands[0] = 1700;
-  seekMotorCommands[1] = 1700;
-  seekMotorCommands[2] = 1700;
-  seekMotorCommands[3] = 1700;
-}
-void driveTo(){
+  int alignError = pt_adc_vals[0] + pt_adc_vals[1] - pt_adc_vals[2] - pt_adc_vals[3];
+  int i;
+  bool fireDetected = false;
+  for (i = 0; i < 4;i++){
+    if (pt_adc_vals[i] < 0.8*1023){
+      fireDetected = true;
+    }
+  }
+  if(fireDetected){
+    seekMotorCommands[0] = 1500 + alignError;
+    seekMotorCommands[1] = 1500 + alignError;
+    seekMotorCommands[2] = 1500 + alignError;
+    seekMotorCommands[3] = 1500 + alignError;
+    if (alignError < 10){
+      seek_state = DRIVE;
+    }
+  } else {
+    seekMotorCommands[0] = 1700;
+    seekMotorCommands[1] = 1700;
+    seekMotorCommands[2] = 1700;
+    seekMotorCommands[3] = 1700;
+  }
 
 }
+void driveTo(){
+    seekMotorCommands[0] = 1700;
+    seekMotorCommands[1] = 1700;
+    seekMotorCommands[2] = 1300;
+    seekMotorCommands[3] = 1300;
+  
+}
 void extinguish(){
+  
 
 }
 
