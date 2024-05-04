@@ -78,14 +78,19 @@ int pt_pin_array[4] = {pt1,pt2,pt3,pt4};
 int servoPin = 42;
 
 ////////////////////// ULTRASONIC VARIABLES /////////////
-#define USF 0 //Ultrasonic Front
-#define USL 1 //Ultrasonic left
+#define USL 0 //Ultrasonic left
+#define USF 1 //Ultrasonic Front
 #define USR 2 //Ultrasonic right
-int UStimer = 0;
-int USTime = 150; //ms min before US reading
+long UStimer = 0;
+long UStimerPrev = 0;
+int USTime = 175; //ms min before US reading
 int USstate = USF;//defualt US State 
 int USstatePrev = USL; //set start sweep direction 
-float USsensor[3] = {0,0,0};// US Sensors 
+float USvalues[3] = {0,0,0};// US Sensors
+int USdegrees[3] = {95,-15,-125};
+// int USdegrees[USL] = 95;//degrees needed to rotate the sensor to the left position,
+// int USdegrees[USF] = -15; //front position 
+// int USdegrees[USR] = -125; //right position
 
 /////////////// PT VALUE ARRAY ////////////////
 int pt_adc_vals[4];
@@ -143,7 +148,7 @@ void loop(void) //main loop
   };
 
   sensorGather();
-  ultrasonic();
+  USReading();
   seek();
   avoid();
   suppressor();
@@ -162,15 +167,54 @@ void sensorGather(){
     ir_obj_detect[i] = false;
   }
 }
-void ultrasonic(){
-  //do something with USsensor[3]
+void USReading() {
+  UStimer = millis() - UStimerPrev;
+  if (UStimer >= USTime) {
+    if (USstate == USF) {
+      USvalues[USF] = HC_SR04_range();
+      if (USstatePrev == USL) {
+        USstate = USR;
+      } else {
+        USstate = USL;
+      }
+      USstatePrev = USF; // Track the current state as the previous state
+    }
+    else if (USstate == USL) {
+      USvalues[USL] = HC_SR04_range();
+      USstatePrev = USL; // Keep this to track this state was last
+      USstate = USF; // Move to USR after USL
+    }
+    else if (USstate == USR) {
+      USvalues[USR] = HC_SR04_range();
+      USstatePrev = USR; // Track this as the last state
+      USstate = USF; // Reset back to USF to complete the cycle
+    }
+    rotateServo(USdegrees[USstate]); // Adjust servo position based on current state
+    UStimerPrev = millis(); // Reset the timer for the next interval
+  }
 }
+
+
+void rotateServo(int degrees){
+  //900 = -120 degrees, 2100 = +120 degrees, 1500 = 0
+  int pwPD = 5; //plusewidth per degree
+  int pwS = (degrees*pwPD)+1500;//plusewidth out to servo
+  
+  if(pwS>2100){//Cap outpt variable
+    pwS = 2100;
+  }
+  else if(pwS<900){
+    pwS = 900;
+  }
+  turret_motor.writeMicroseconds(pwS);
+}
+
 void seek(){
-  if (seek_state == ALIGN){
+  if (seek_state == 0){
     alignTo();
-  } else if(seek_state == DRIVE){
+  } else if(seek_state == 1){
     driveTo();
-  } else if(seek_state == EXTINGUISH){
+  } else if(seek_state == 2){
     extinguish();
   }
   //using pt array and IR array figure out motor commands
@@ -376,7 +420,7 @@ boolean is_battery_voltage_OK()
 #endif
 
 #ifndef NO_HC-SR04
-void HC_SR04_range()
+float HC_SR04_range()
 {
   unsigned long t1;
   unsigned long t2;
@@ -409,7 +453,7 @@ void HC_SR04_range()
     t2 = micros();
     pulse_width = t2 - t1;
     if ( pulse_width > (MAX_DIST + 1000) ) {
-      SerialCom->println("HC-SR04: Out of range");
+      //SerialCom->println("HC-SR04: Out of range");
       return;
     }
   }
@@ -425,12 +469,13 @@ void HC_SR04_range()
 
   // Print out results
   if ( pulse_width > MAX_DIST ) {
-    SerialCom->println("HC-SR04: Out of range");
+    //SerialCom->println("HC-SR04: Out of range");
   } else {
-    SerialCom->print("HC-SR04:");
-    SerialCom->print(cm);
-    SerialCom->println("cm");
+    //SerialCom->print("HC-SR04:");
+    //SerialCom->print(cm);
+    //SerialCom->println("cm");
   }
+  return cm;
 }
 #endif
 
