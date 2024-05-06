@@ -19,6 +19,7 @@
   Modified: 15/02/2018
   Author: Logan Stuart
 */
+int toMerge = 0;
 #include <Servo.h>  //Need for Servo pulse output
 
 //#define NO_READ_GYRO  //Uncomment of GYRO is not attached.
