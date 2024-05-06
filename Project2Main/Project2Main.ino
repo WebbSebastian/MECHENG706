@@ -1,5 +1,5 @@
 /*
-  MechEng 706 Base Code
+  MechEng 706 Base Code  test
 
   This code provides basic movement and sensor reading for the MechEng 706 Mecanum Wheel Robot Project
 
@@ -19,6 +19,9 @@
   Modified: 15/02/2018
   Author: Logan Stuart
 */
+
+int test = 0;
+
 #include <Servo.h>  //Need for Servo pulse output
 
 //#define NO_READ_GYRO  //Uncomment of GYRO is not attached.
