@@ -73,6 +73,16 @@ const int pt2 = A5;
 const int pt3 = A6;
 const int pt4 = A7;
 
+////////////////////// Avoidance global variables /////////
+int idle = 1;
+int forward = 0;
+int leftArc = 0;
+int rightArc = 0;
+int backwards = 0;
+int activeAvoid = 0;
+int timeOut = 0;
+int timer = 100;
+
 int pt_pin_array[4] = {pt1,pt2,pt3,pt4};
 ////////////////////// SERVO PIN //////////////
 int servoPin = 42;
@@ -256,13 +266,14 @@ void extinguish(){
   
 
 }
-
+/*
 void avoid(){
   avoidMotorCommands[0] = 1700;
   avoidMotorCommands[1] = 1700;
   avoidMotorCommands[2] = 1300;
   avoidMotorCommands[3] = 1300;
 }
+*/
 void suppressor(){
   int i;
   if(1){
@@ -656,4 +667,92 @@ void strafe_right ()
   left_rear_motor.writeMicroseconds(1500 - speed_val);
   right_rear_motor.writeMicroseconds(1500 - speed_val);
   right_font_motor.writeMicroseconds(1500 + speed_val);
+}
+
+
+
+void avoid(float left, float right, float leftSide, float rightSide)
+{
+  if (idle)
+  {
+    if(right)
+    {
+      idle = 0;
+      timeOut = 0;
+      if (left)
+      {
+        backwards = 1;
+      }
+      else
+      {
+        leftArc = 1;
+      }
+    }
+    else if (left)
+    {
+      idle = 0;
+      timeOut = 0;
+      rightArc = 1;
+    }
+  }
+
+  if (forward)
+  {
+    if (right)
+    {
+      forward = 0;
+      timeOut = 0;
+      if (left)
+      {
+        backwards = 1;
+      }
+      else
+      {
+        leftArc = 1;
+      }
+    }
+    else if (left)
+    {
+      forward = 0;
+      timeOut = 0;
+      rightArc = 1;
+    }
+
+    if (timeOut >= timer)
+    {
+      forward = 0;
+      idle = 1;
+    }
+  }
+
+  if (backward)
+  {
+    if (timeOut >= timer)
+    {
+      backwards = 0;
+      timeOut = 0;
+      rightArc = 1;
+    }
+  }
+
+  if (leftArc)
+  {
+    if (timeOut >= timer)
+    {
+      leftArc = 0;
+      timeOut = 0;
+      forward = 1;
+    }
+  }
+
+  if (rightArc)
+  {
+    if (timeOut >= timer)
+    {
+      rightArc = 0;
+      timeOut = 0;
+      forward = 1;
+    }
+  }
+
 }
