@@ -220,27 +220,28 @@ void seek(){
   //using pt array and IR array figure out motor commands
 }
 void alignTo(){
-  int alignError = pt_adc_vals[0] + pt_adc_vals[1] - pt_adc_vals[2] - pt_adc_vals[3];
+  int alignError = 3*pt_adc_vals[0] + pt_adc_vals[1] - pt_adc_vals[2] - 3*pt_adc_vals[3];
   int i;
   bool fireDetected = false;
   for (i = 0; i < 4;i++){
-    if (pt_adc_vals[i] < 0.8*1023){
+    if (pt_adc_vals[i] < 0.98*1023){
       fireDetected = true;
     }
   }
+  alignError = alignError*5;
   if(fireDetected){
     seekMotorCommands[0] = 1500 + alignError;
     seekMotorCommands[1] = 1500 + alignError;
     seekMotorCommands[2] = 1500 + alignError;
     seekMotorCommands[3] = 1500 + alignError;
     if (alignError < 10){
-      seek_state = DRIVE;
+      //seek_state = DRIVE;
     }
-  } else {
-    seekMotorCommands[0] = 1700;
-    seekMotorCommands[1] = 1700;
-    seekMotorCommands[2] = 1700;
-    seekMotorCommands[3] = 1700;
+  } else if(!alignError) {
+    seekMotorCommands[0] = 1600;
+    seekMotorCommands[1] = 1600;
+    seekMotorCommands[2] = 1600;
+    seekMotorCommands[3] = 1600;
   }
 
 }
