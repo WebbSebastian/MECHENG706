@@ -1,4 +1,24 @@
+/*
+  MechEng 706 Base Code
 
+  This code provides basic movement and sensor reading for the MechEng 706 Mecanum Wheel Robot Project
+
+  Hardware:
+    Arduino Mega2560 https://www.arduino.cc/en/Guide/ArduinoMega2560
+    MPU-9250 https://www.sparkfun.com/products/13762
+    Ultrasonic Sensor - HC-SR04 https://www.sparkfun.com/products/13959
+    Infrared Proximity Sensor - Sharp https://www.sparkfun.com/products/242
+    Infrared Proximity Sensor Short Range - Sharp https://www.sparkfun.com/products/12728
+    Servo - Generic (Sub-Micro Size) https://www.sparkfun.com/products/9065
+    Vex Motor Controller 29 https://www.vexrobotics.com/276-2193.html
+    Vex Motors https://www.vexrobotics.com/motors.html
+    Turnigy nano-tech 2200mah 2S https://hobbyking.com/en_us/turnigy-nano-tech-2200mah-2s-25-50c-lipo-pack.html
+
+  Date: 11/11/2016
+  Author: Logan Stuart
+  Modified: 15/02/2018
+  Author: Logan Stuart
+*/
 #include <Servo.h>  //Need for Servo pulse output
 
 //#define NO_READ_GYRO  //Uncomment of GYRO is not attached.
@@ -19,11 +39,6 @@ const byte left_front = 51;
 const byte left_rear = 50;
 const byte right_rear = 47;
 const byte right_front = 46;
-
-
-//Default ultrasonic ranging sensor pins, these pins are defined my the Shield
-const int TRIG_PIN = 48;
-const int ECHO_PIN = 49;
 
 // Anything over 400 cm (23200 us pulse) is "out of range". Hit:If you decrease to this the ranging sensor but the timeout is short, you may not need to read up to 4meters.
 const unsigned int MAX_DIST = 23200;
@@ -55,7 +70,7 @@ const int pt4 = A7;
 
 ////////////////////// Avoidance global variables /////////
 int idle = 1;
-int forward = 0;
+int forwards = 0;
 int leftArc = 0;
 int rightArc = 0;
 int backwards = 0;
@@ -64,10 +79,13 @@ int timeOut = 0;
 int timer = 100;
 
 int pt_pin_array[4] = {pt1,pt2,pt3,pt4};
-////////////////////// SERVO PIN //////////////
+
+////////////////////// ULTRASONIC AND SERVO VARIABLES /////////////
+//Default ultrasonic ranging sensor pins, these pins are defined my the Shield
+const int TRIG_PIN = 48;
+const int ECHO_PIN = 49;
 int servoPin = 42;
 
-////////////////////// ULTRASONIC VARIABLES /////////////
 #define USL 0 //Ultrasonic left
 #define USF 1 //Ultrasonic Front
 #define USR 2 //Ultrasonic right
@@ -102,7 +120,7 @@ int seek_state = 0;
 int pos = 0;
 void setup(void)
 {
-  turret_motor.attach(11);
+  turret_motor.attach(servoPin);
   pinMode(LED_BUILTIN, OUTPUT);
 
   // The Trigger pin will tell the sensor to range find
@@ -140,7 +158,7 @@ void loop(void) //main loop
   sensorGather();
   USReading();
   seek();
-  avoid();
+  //avoid();
   suppressor();
 
   left_font_motor.writeMicroseconds(motorCommands[0]);
@@ -157,7 +175,9 @@ void sensorGather(){
     ir_obj_detect[i] = false;
   }
 }
+
 void USReading() {
+  //Serial.println("Hello");
   UStimer = millis() - UStimerPrev;
   if (UStimer >= USTime) {
     if (USstate == USF) {
@@ -183,7 +203,6 @@ void USReading() {
     UStimerPrev = millis(); // Reset the timer for the next interval
   }
 }
-
 
 void rotateServo(int degrees){
   //900 = -120 degrees, 2100 = +120 degrees, 1500 = 0
@@ -651,88 +670,88 @@ void strafe_right ()
 
 
 
-void avoid(float left, float right, float leftSide, float rightSide)
-{
-  if (idle)
-  {
-    if(right)
-    {
-      idle = 0;
-      timeOut = 0;
-      if (left)
-      {
-        backwards = 1;
-      }
-      else
-      {
-        leftArc = 1;
-      }
-    }
-    else if (left)
-    {
-      idle = 0;
-      timeOut = 0;
-      rightArc = 1;
-    }
-  }
+// void avoid(float left, float right, float leftSide, float rightSide)
+// {
+//   if (idle)
+//   {
+//     if(right)
+//     {
+//       idle = 0;
+//       timeOut = 0;
+//       if (left)
+//       {
+//         backwards = 1;
+//       }
+//       else
+//       {
+//         leftArc = 1;
+//       }
+//     }
+//     else if (left)
+//     {
+//       idle = 0;
+//       timeOut = 0;
+//       rightArc = 1;
+//     }
+//   }
 
-  if (forward)
-  {
-    if (right)
-    {
-      forward = 0;
-      timeOut = 0;
-      if (left)
-      {
-        backwards = 1;
-      }
-      else
-      {
-        leftArc = 1;
-      }
-    }
-    else if (left)
-    {
-      forward = 0;
-      timeOut = 0;
-      rightArc = 1;
-    }
+//   if (forward)
+//   {
+//     if (right)
+//     {
+//       forward = 0;
+//       timeOut = 0;
+//       if (left)
+//       {
+//         backwards = 1;
+//       }
+//       else
+//       {
+//         leftArc = 1;
+//       }
+//     }
+//     else if (left)
+//     {
+//       forward = 0;
+//       timeOut = 0;
+//       rightArc = 1;
+//     }
 
-    if (timeOut >= timer)
-    {
-      forward = 0;
-      idle = 1;
-    }
-  }
+//     if (timeOut >= timer)
+//     {
+//       forward = 0;
+//       idle = 1;
+//     }
+//   }
 
-  if (backward)
-  {
-    if (timeOut >= timer)
-    {
-      backwards = 0;
-      timeOut = 0;
-      rightArc = 1;
-    }
-  }
+//   if (backward)
+//   {
+//     if (timeOut >= timer)
+//     {
+//       backwards = 0;
+//       timeOut = 0;
+//       rightArc = 1;
+//     }
+//   }
 
-  if (leftArc)
-  {
-    if (timeOut >= timer)
-    {
-      leftArc = 0;
-      timeOut = 0;
-      forward = 1;
-    }
-  }
+//   if (leftArc)
+//   {
+//     if (timeOut >= timer)
+//     {
+//       leftArc = 0;
+//       timeOut = 0;
+//       forward = 1;
+//     }
+//   }
 
-  if (rightArc)
-  {
-    if (timeOut >= timer)
-    {
-      rightArc = 0;
-      timeOut = 0;
-      forward = 1;
-    }
-  }
+//   if (rightArc)
+//   {
+//     if (timeOut >= timer)
+//     {
+//       rightArc = 0;
+//       timeOut = 0;
+//       forward = 1;
+//     }
+//   }
 
-}
+// }
