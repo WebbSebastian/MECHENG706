@@ -229,54 +229,7 @@ void loop(void) //main loop
   float volts3 = adc3*4.2/1024.0;
   float volts4 = adc4*4.2/1024.0;
 
-  Serial.print("analog ADC ");
-  Serial.print(adc1);
-  Serial.print(" ");
-  Serial.print("A4 = ");
-  Serial.println(volts1);
-
-  Serial.print("analog ADC ");
-  Serial.print(adc2);
-  Serial.print(" ");
-  Serial.print("A5 = ");
-  Serial.println(volts2);
   
-  Serial.print("analog ADC ");
-  Serial.print(adc3);
-  Serial.print(" ");
-  Serial.print("A6 = ");
-  Serial.println(volts3);
-
-  Serial.print("analog ADC ");
-  Serial.print(adc4);
-  Serial.print(" ");
-  Serial.print("A7 = ");
-  Serial.println(volts4);
-  delay(100);
-  
-
-  
-
-  //Serial.print(angularVelocity);
-  //Serial.print(" ");
-  //Serial.println(current_Angle);
-  //Serial.print(" ");
-  //Serial.print(analogRead(sensorPin));
-
-  //delay(100);
-
-/*
-  if(IR_SERIAL){ //Serial controll for the IR sensor
-
-    Serial.print("SF: "); Serial.print(distanceSF); Serial.print("cm  "); Serial.print(ADCsignalSF); Serial.print("      ");
-    Serial.print("SS: "); Serial.print(distanceSS); Serial.print("cm  "); Serial.print(ADCsignalSS); Serial.print("          ");
-    Serial.print("LF: "); Serial.print(distanceLF); Serial.print("cm  "); Serial.print(ADCsignalLF); Serial.print("         ");
-    Serial.print("LS: "); Serial.print(distanceLS); Serial.print("cm "); Serial.print(ADCsignalLS); Serial.println("");
-    Serial.print("US: "); Serial.print(distanceUS); Serial.print("cm "); Serial.println("");
-    delay(50);
-
-  }
-  */
 }
 
 
