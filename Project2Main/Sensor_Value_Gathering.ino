@@ -55,19 +55,52 @@ class SensorDebug {
 
 float sensorValuesInst[4];
 float sensorValues[50][4];
+SensorDebug* sensorResults[5][4];
+int testStage = 0;
+
+int testStageDistance[4] = {75, 100, 150, 200};
+int testStageAngle[5] = {-30, -15, 0, 15, 30};
+bool testMessage = true;
+
+bool startTest = false;
 
 int i = 0;
 
 main loop() {
-    sensorValues[i][0] = pt1;
-    sensorValues[i][1] = pt2;
-    sensorValues[i][2] = pt3;
-    sensorValues[i][3] = pt4;
+      if (Serial.available()) // Check for input from terminal
+  {
+    serialRead = Serial.read(); // Read input
+    
+    if (serialRead==50) // if input is 2, start testing pt
+    {
+      startTest = true;
+    }
+  }
+
+    if (startTest && testStage < 20)
+  {  
+    sensorValues[i][0] = adc1;
+    sensorValues[i][1] = adc2;
+    sensorValues[i][2] = adc3;
+    sensorValues[i][3] = adc4;
 
     i++;
 
     if(i == 49){
         i = 0;
-        SensorDebug iter1 = SensorDebug(sensorValues);
+
+        *sensorResults[testStage/4][testStage%4] = SensorDebug(sensorValues);
+        testStage++;
+        
+        startTest = false;
+        testMessage = true;
     }
+  } else
+  {
+    if(testMessage){
+      SerialCom->print("Position robot at "); SerialCom->print(testStageDistance); SerialCom->print("mm & "); SerialCom->print(testStageAngle); SerialCom->println(" degrees from fire. ");
+      SerialCom->println("Input character 2 when done.");
+      testMessage = false;      
+    }
+  }
 }
