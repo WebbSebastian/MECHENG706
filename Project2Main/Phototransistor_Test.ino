@@ -1,24 +1,4 @@
-/*
-  MechEng 706 Base Code
 
-  This code provides basic movement and sensor reading for the MechEng 706 Mecanum Wheel Robot Project
-
-  Hardware:
-    Arduino Mega2560 https://www.arduino.cc/en/Guide/ArduinoMega2560
-    MPU-9250 https://www.sparkfun.com/products/13762
-    Ultrasonic Sensor - HC-SR04 https://www.sparkfun.com/products/13959
-    Infrared Proximity Sensor - Sharp https://www.sparkfun.com/products/242
-    Infrared Proximity Sensor Short Range - Sharp https://www.sparkfun.com/products/12728
-    Servo - Generic (Sub-Micro Size) https://www.sparkfun.com/products/9065
-    Vex Motor Controller 29 https://www.vexrobotics.com/276-2193.html
-    Vex Motors https://www.vexrobotics.com/motors.html
-    Turnigy nano-tech 2200mah 2S https://hobbyking.com/en_us/turnigy-nano-tech-2200mah-2s-25-50c-lipo-pack.html
-
-  Date: 11/11/2016
-  Author: Logan Stuart
-  Modified: 15/02/2018
-  Author: Logan Stuart
-*/
 #include <Servo.h>  //Need for Servo pulse output
 
 //#define NO_READ_GYRO  //Uncomment of GYRO is not attached.   
@@ -46,9 +26,6 @@ const byte right_front = 46;
 //const byte right_front = 50;
 
 
-//Default ultrasonic ranging sensor pins, these pins are defined my the Shield
-const int TRIG_PIN = 48;
-const int ECHO_PIN = 49;
 
 // Anything over 400 cm (23200 us pulse) is "out of range". Hit:If you decrease to this the ranging sensor but the timeout is short, you may not need to read up to 4meters.
 const unsigned int MAX_DIST = 23200;
@@ -115,9 +92,30 @@ float adc2 = 0;
 float adc3 = 0;
 float adc4 = 0;
 
+
+//ULTRASONIC TURRET
+//Default ultrasonic ranging sensor pins, these pins are defined my the Shield
+const int TRIG_PIN = 48;
+const int ECHO_PIN = 49;
+int servoPin = 42;
+
+#define USL 0 //Ultrasonic left
+#define USF 1 //Ultrasonic Front
+#define USR 2 //Ultrasonic right
+long UStimer = 0;
+long UStimerPrev = 0;
+int USTime = 175; //ms min before US reading
+int USstate = USF;//defualt US State 
+int USstatePrev = USL; //set start sweep direction 
+float USvalues[3] = {0,0,0};// US Sensors
+int USdegrees[3] = {95,-15,-125};
+// int USdegrees[USL] = 95;//degrees needed to rotate the sensor to the left position,
+// int USdegrees[USF] = -15; //front position 
+// int USdegrees[USR] = -125; //right position
+
 void setup(void)
 {
-  turret_motor.attach(11);
+  turret_motor.attach(servoPin);
   pinMode(LED_BUILTIN, OUTPUT);
 
   // The Trigger pin will tell the sensor to range find
@@ -208,28 +206,89 @@ void loop(void) //main loop
   //straight_align(distanceLS, distanceLF, edgeDist);
   */
 
+
+
+
+
+
   //dummy reading => for some reason if A0 (battery health) is called in-between, Vref uses 5V, otherwise uses 4.2V
-  analogRead(pt1);
-  delay(500);
+  // analogRead(pt1);
+  // delay(500);
 
 
-  adc1 = analogRead(pt1);
-  //analogRead(A0);
-  delay(500);
-  adc2 = analogRead(pt2);
-  //analogRead(A0);
-  delay(500);
-  adc3 = analogRead(pt3);
-  //analogRead(A0);
-  delay(500);
-  adc4 = analogRead(pt4);
+  // adc1 = analogRead(pt1);
+  // //analogRead(A0);
+  // delay(500);
+  // adc2 = analogRead(pt2);
+  // //analogRead(A0);
+  // delay(500);
+  // adc3 = analogRead(pt3);
+  // //analogRead(A0);
+  // delay(500);
+  // adc4 = analogRead(pt4);
 
-  float volts1 = adc1*4.2/1024.0;
-  float volts2 = adc2*4.2/1024.0;
-  float volts3 = adc3*4.2/1024.0;
-  float volts4 = adc4*4.2/1024.0;
+  // float volts1 = adc1*4.2/1024.0;
+  // float volts2 = adc2*4.2/1024.0;
+  // float volts3 = adc3*4.2/1024.0;
+  // float volts4 = adc4*4.2/1024.0;
 
+<<<<<<< HEAD:Project2/Phototransistor_Test.ino
   
+=======
+  // Serial.print("analog ADC ");
+  // Serial.print(adc1);
+  // Serial.print(" ");
+  // Serial.print("A4 = ");
+  // Serial.println(volts1);
+
+  // Serial.print("analog ADC ");
+  // Serial.print(adc2);
+  // Serial.print(" ");
+  // Serial.print("A5 = ");
+  // Serial.println(volts2);
+  
+  // Serial.print("analog ADC ");
+  // Serial.print(adc3);
+  // Serial.print(" ");
+  // Serial.print("A6 = ");
+  // Serial.println(volts3);
+
+  // Serial.print("analog ADC ");
+  // Serial.print(adc4);
+  // Serial.print(" ");
+  // Serial.print("A7 = ");
+  // Serial.println(volts4);
+  // delay(100);
+  
+
+  //testing servo motor 
+  //rotateServo(-90);
+  USReading();
+  Serial.println(USvalues[USF]); // Debugging output to monitor state transitions
+  
+
+
+  //Serial.print(angularVelocity);
+  //Serial.print(" ");
+  //Serial.println(current_Angle);
+  //Serial.print(" ");
+  //Serial.print(analogRead(sensorPin));
+
+  //delay(100);
+
+/*
+  if(IR_SERIAL){ //Serial controll for the IR sensor
+
+    Serial.print("SF: "); Serial.print(distanceSF); Serial.print("cm  "); Serial.print(ADCsignalSF); Serial.print("      ");
+    Serial.print("SS: "); Serial.print(distanceSS); Serial.print("cm  "); Serial.print(ADCsignalSS); Serial.print("          ");
+    Serial.print("LF: "); Serial.print(distanceLF); Serial.print("cm  "); Serial.print(ADCsignalLF); Serial.print("         ");
+    Serial.print("LS: "); Serial.print(distanceLS); Serial.print("cm "); Serial.print(ADCsignalLS); Serial.println("");
+    Serial.print("US: "); Serial.print(distanceUS); Serial.print("cm "); Serial.println("");
+    delay(50);
+
+  }
+  */
+>>>>>>> 2a10e5cb6960d497860322f1117b8ae3c4041a2c:Project2Main/Phototransistor_Test.ino
 }
 
 
@@ -474,6 +533,48 @@ void GYRO_reading()
   //SerialCom->println(analogRead(A3));
 }
 #endif
+
+void USReading() {
+  UStimer = millis() - UStimerPrev;
+  if (UStimer >= USTime) {
+    if (USstate == USF) {
+      USvalues[USF] = HC_SR04_range();
+      if (USstatePrev == USL) {
+        USstate = USR;
+      } else {
+        USstate = USL;
+      }
+      USstatePrev = USF; // Track the current state as the previous state
+    }
+    else if (USstate == USL) {
+      USvalues[USL] = HC_SR04_range();
+      USstatePrev = USL; // Keep this to track this state was last
+      USstate = USF; // Move to USR after USL
+    }
+    else if (USstate == USR) {
+      USvalues[USR] = HC_SR04_range();
+      USstatePrev = USR; // Track this as the last state
+      USstate = USF; // Reset back to USF to complete the cycle
+    }
+    rotateServo(USdegrees[USstate]); // Adjust servo position based on current state
+    UStimerPrev = millis(); // Reset the timer for the next interval
+  }
+}
+
+
+void rotateServo(int degrees){
+  //900 = -120 degrees, 2100 = +120 degrees, 1500 = 0
+  int pwPD = 5; //plusewidth per degree
+  int pwS = (degrees*pwPD)+1500;//plusewidth out to servo
+  
+  if(pwS>2100){//Cap outpt variable
+    pwS = 2100;
+  }
+  else if(pwS<900){
+    pwS = 900;
+  }
+  turret_motor.writeMicroseconds(pwS);
+}
 
 //Serial command pasing
 void read_serial_command()

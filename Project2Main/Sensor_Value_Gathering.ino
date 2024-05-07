@@ -2,27 +2,18 @@ class SensorDebug {
     private:
     float readingArray[50][4];
 
-    bool isCorrectArray(float **array){
-        int numRow;
-        int numColumn;
 
-        numColumn = sizeof(array[0])/sizeof(array[0][0]);
-        numRow = sizeof(array)/sizeof(array[0]);
-
-        return (numRow == 50) && (numColumn == 4);
-    }
     public:
-
-    SensorDebug(float** sensorArray){
-        if(isCorrectArray(sensorArray)){
-            for(int i = 0; i < 50; i++){
-                for(int j = 0; j < 4; j++){
-                    readingArray[i][j] = sensorArray[i][j];
-                }
+    //constructor
+    SensorDebug(float sensorArray[50][4]){
+        for(int i = 0; i < 50; i++){
+            for(int j = 0; j < 4; j++){
+                readingArray[i][j] = sensorArray[i][j];
             }
         }
     }
 
+    //return average of sensor readings
     float getAvg(int sensor){       
         if(sensor > 4 || sensor <= 0)
             return -2;
@@ -35,6 +26,7 @@ class SensorDebug {
         return sensorAvg/50.0;
     }
 
+    //return highest/lowest sensor readings
     float* getBounds(int sensor){
         float bounds[2] = {-1, -1};
 
