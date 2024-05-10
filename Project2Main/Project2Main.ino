@@ -241,6 +241,7 @@ void alignTo(){
 
 }
 void driveTo(){
+/*
   float u = 300;
   bool detected = 0; //checks if something detected
   Kp = 0;  
@@ -282,7 +283,7 @@ void driveTo(){
   seekMotorCommands[1] = 1500 + error*direction;
   seekMotorCommands[2] = 1500 - error*direction;
   seekMotorCommands[3] = 1500 - error*direction;
-  
+  */
 }
 void extinguish(){
   
