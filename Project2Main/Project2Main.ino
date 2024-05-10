@@ -17,10 +17,10 @@ enum STATE {
 //Refer to Shield Pinouts.jpg for pin locations
 
 //Default motor control pins
-const byte left_front = 51;
+const byte left_front = 46;
 const byte left_rear = 50;
 const byte right_rear = 47;
-const byte right_front = 46;
+const byte right_front = 51;
 
 // Anything over 400 cm (23200 us pulse) is "out of range". Hit:If you decrease to this the ranging sensor but the timeout is short, you may not need to read up to 4meters.
 const unsigned int MAX_DIST = 23200;
@@ -75,7 +75,7 @@ int servoPin = 42;
 #define USR 2 //Ultrasonic right
 long UStimer = 0;
 long UStimerPrev = 0;
-int USTime = 175; //ms min before US reading
+int USTime = 300; //ms min before US reading
 int USstate = USF;//defualt US State 
 int USstatePrev = USL; //set start sweep direction 
 float USvalues[3] = {0,0,0};// US Sensors
@@ -143,13 +143,21 @@ void loop(void) //main loop
   USReading();
   //seek();
   avoid();
-  //suppressor();
+  suppressor();
   timeOut += 1;
 
   left_font_motor.writeMicroseconds(motorCommands[0]);
   left_rear_motor.writeMicroseconds(motorCommands[1]);
   right_rear_motor.writeMicroseconds(motorCommands[2]);
   right_font_motor.writeMicroseconds(motorCommands[3]);
+
+Serial.println(USvalues[1]);
+  // left_font_motor.writeMicroseconds(1500);
+  // left_rear_motor.writeMicroseconds(1500);
+  // right_rear_motor.writeMicroseconds(1500);
+  // right_font_motor.writeMicroseconds(1700);
+
+delay(10);
 }
 void sensorGather(){
   int i;
@@ -208,7 +216,7 @@ void seek(){
   if (seek_state == ALIGN){
     alignTo();
   } else if(seek_state == DRIVE){
-    driveTo();
+    //driveTo();
   } else if(seek_state == EXTINGUISH){
     extinguish();
   }
@@ -240,51 +248,50 @@ void alignTo(){
   }
 
 }
-void driveTo(){
-/*
-  float u = 300;
-  bool detected = 0; //checks if something detected
-  Kp = 0;  
-  Ki = 0;
+// void driveTo(){
+//   float u = 300;
+//   bool detected = 0; //checks if something detected
+//   Kp = 0;  
+//   Ki = 0;
 
-  error = 0; // change to global variable
-  integralerror = 0;
-  bool direction = 0;
-  int maxSpeed = 500;
+//   error = 0; // change to global variable
+//   integralerror = 0;
+//   bool direction = 0;
+//   int maxSpeed = 500;
   
 
-  //get sensor values here
+//   //get sensor values here
 
-  //error = right -left sensor ;
-  intError += error;
-  if (error > 0){
-    direction = 1;
-  }
-  else{
-    direction = 0;
-  }
-  int i;
-  for (i = 0; i < 4; i++){
-  if(ir_obj_detect[4]==1)
-    detected = 1;
-  }
+//   //error = right -left sensor ;
+//   intError += error;
+//   if (error > 0){
+//     direction = 1;
+//   }
+//   else{
+//     direction = 0;
+//   }
+//   int i;
+//   for (i = 0; i < 4; i++){
+//   if(ir_obj_detect[4]==1)
+//     detected = 1;
+//   }
 
-  if(detected == 1) {
-    avoid();
-  }
+//   if(detected == 1) {
+//     avoid();
+//   }
 
-  if(int pt_adc_vals[2]>int pt_adc_vals[3]){ 
-    error = int pt_adc_vals[2]- int pt_adc_vals[3]
-  }
+//   if(int pt_adc_vals[2]>int pt_adc_vals[3]){ 
+//     error = int pt_adc_vals[2]- int pt_adc_vals[3]
+//   }
 
-  error = SpeedCap(Kp * error + Ki * interror, maxSpeed)
+//   error = SpeedCap(Kp * error + Ki * interror, maxSpeed)
 
-  seekMotorCommands[0] = 1500 + error*direction;
-  seekMotorCommands[1] = 1500 + error*direction;
-  seekMotorCommands[2] = 1500 - error*direction;
-  seekMotorCommands[3] = 1500 - error*direction;
-  */
-}
+//   seekMotorCommands[0] = 1500 + error*direction;
+//   seekMotorCommands[1] = 1500 + error*direction;
+//   seekMotorCommands[2] = 1500 - error*direction;
+//   seekMotorCommands[3] = 1500 - error*direction;
+  
+// }
 void extinguish(){
   
 
@@ -377,7 +384,7 @@ void avoid()
     }
   }
 
-  if (forward){
+  if (forwards){
     avoidMotorCommands[0] = 1700;
     avoidMotorCommands[1] = 1700;
     avoidMotorCommands[2] = 1300;
@@ -420,7 +427,7 @@ void avoid(){
 */
 void suppressor(){
   int i;
-  if(1){
+  if(0){
     for (i = 0; i < 4; i++){
     motorCommands[i] = seekMotorCommands[i];
     }
