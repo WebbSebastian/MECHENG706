@@ -1,24 +1,3 @@
-/*
-  MechEng 706 Base Code  test
-
-  This code provides basic movement and sensor reading for the MechEng 706 Mecanum Wheel Robot Project
-
-  Hardware:
-    Arduino Mega2560 https://www.arduino.cc/en/Guide/ArduinoMega2560
-    MPU-9250 https://www.sparkfun.com/products/13762
-    Ultrasonic Sensor - HC-SR04 https://www.sparkfun.com/products/13959
-    Infrared Proximity Sensor - Sharp https://www.sparkfun.com/products/242
-    Infrared Proximity Sensor Short Range - Sharp https://www.sparkfun.com/products/12728
-    Servo - Generic (Sub-Micro Size) https://www.sparkfun.com/products/9065
-    Vex Motor Controller 29 https://www.vexrobotics.com/276-2193.html
-    Vex Motors https://www.vexrobotics.com/motors.html
-    Turnigy nano-tech 2200mah 2S https://hobbyking.com/en_us/turnigy-nano-tech-2200mah-2s-25-50c-lipo-pack.html
-
-  Date: 11/11/2016
-  Author: Logan Stuart
-  Modified: 15/02/2018
-  Author: Logan Stuart
-*/
 
 int test = 0;
 
@@ -80,9 +59,11 @@ int backwards = 0;
 int activeAvoid = 0;
 int timeOut = 0;
 int timer = 100;
+int left = 0;
+int right = 0;
+int front = 0;
 
 int pt_pin_array[4] = {pt1,pt2,pt3,pt4};
-
 ////////////////////// ULTRASONIC AND SERVO VARIABLES /////////////
 //Default ultrasonic ranging sensor pins, these pins are defined my the Shield
 const int TRIG_PIN = 48;
@@ -160,9 +141,10 @@ void loop(void) //main loop
 
   sensorGather();
   USReading();
-  seek();
-  //avoid();
-  suppressor();
+  //seek();
+  avoid();
+  //suppressor();
+  timeOut += 1;
 
   left_font_motor.writeMicroseconds(motorCommands[0]);
   left_rear_motor.writeMicroseconds(motorCommands[1]);
@@ -221,6 +203,7 @@ void rotateServo(int degrees){
   turret_motor.writeMicroseconds(pwS);
 }
 
+
 void seek(){
   if (seek_state == ALIGN){
     alignTo();
@@ -258,14 +241,172 @@ void alignTo(){
 
 }
 void driveTo(){
-    seekMotorCommands[0] = 1700;
-    seekMotorCommands[1] = 1700;
-    seekMotorCommands[2] = 1300;
-    seekMotorCommands[3] = 1300;
+  float u = 300;
+  bool detected = 0; //checks if something detected
+  Kp = 0;  
+  Ki = 0;
+
+  error = 0; // change to global variable
+  integralerror = 0;
+  bool direction = 0;
+  int maxSpeed = 500;
+  
+
+  //get sensor values here
+
+  //error = right -left sensor ;
+  intError += error;
+  if (error > 0){
+    direction = 1;
+  }
+  else{
+    direction = 0;
+  }
+  int i;
+  for (i = 0; i < 4; i++){
+  if(ir_obj_detect[4]==1)
+    detected = 1;
+  }
+
+  if(detected == 1) {
+    avoid();
+  }
+
+  if(int pt_adc_vals[2]>int pt_adc_vals[3]){ 
+    error = int pt_adc_vals[2]- int pt_adc_vals[3]
+  }
+
+  error = SpeedCap(Kp * error + Ki * interror, maxSpeed)
+
+  seekMotorCommands[0] = 1500 + error*direction;
+  seekMotorCommands[1] = 1500 + error*direction;
+  seekMotorCommands[2] = 1500 - error*direction;
+  seekMotorCommands[3] = 1500 - error*direction;
   
 }
 void extinguish(){
   
+
+}
+void avoid()
+{
+  if (USvalues[0] <= 10){
+    int left = 1;
+  }
+  if (USvalues[2] <= 10){
+    int right = 1;
+  }
+  if (USvalues[1] <= 10){
+    int front = 1;
+  }
+  
+  //int left = ir_obj_detect[0] + leftObj;
+  //int right = ir_obj_detect[1] + rightObj;
+
+  if (idle){
+    if(right){
+      idle = 0;
+      timeOut = 0;
+      if (left){
+        backwards = 1;
+      }
+      else{
+        leftArc = 1;
+      }
+    }
+    else if (left){
+      idle = 0;
+      timeOut = 0;
+      rightArc = 1;
+    }
+  }
+
+  if (forwards){
+    if (right){
+      forwards = 0;
+      timeOut = 0;
+      if (left){
+        backwards = 1;
+      }
+      else{
+        leftArc = 1;
+      }
+    }
+    else if (left){
+      forwards = 0;
+      timeOut = 0;
+      rightArc = 1;
+    }
+    else if (front){
+      backwards = 1;
+      forwards = 0;
+      timeOut = 0;
+    }
+    else if (ir_obj_detect[0] || ir_obj_detect[1]){
+      timeOut = 0;
+    }
+
+    if (timeOut >= timer){
+      forwards = 0;
+      idle = 1;
+    }
+  }
+
+  if (backwards){
+    if (timeOut >= timer){
+      backwards = 0;
+      timeOut = 0;
+      rightArc = 1;
+    }
+  }
+
+  if (leftArc){
+    if (timeOut >= timer){
+      leftArc = 0;
+      timeOut = 0;
+      forwards = 1;
+    }
+  }
+
+  if (rightArc){
+    if (timeOut >= timer){
+      rightArc = 0;
+      timeOut = 0;
+      forwards = 1;
+    }
+  }
+
+  if (forward){
+    avoidMotorCommands[0] = 1700;
+    avoidMotorCommands[1] = 1700;
+    avoidMotorCommands[2] = 1300;
+    avoidMotorCommands[3] = 1300;
+  }
+  if (backwards){
+    avoidMotorCommands[0] = 1300;
+    avoidMotorCommands[1] = 1300;
+    avoidMotorCommands[2] = 1700;
+    avoidMotorCommands[3] = 1700;
+  }
+  if (idle){
+    avoidMotorCommands[0] = 1700;
+    avoidMotorCommands[1] = 1700;
+    avoidMotorCommands[2] = 1300;
+    avoidMotorCommands[3] = 1300;
+  }
+  if (leftArc){
+    avoidMotorCommands[0] = 1300;
+    avoidMotorCommands[1] = 1300;
+    avoidMotorCommands[2] = 1300;
+    avoidMotorCommands[3] = 1300;
+  }
+  if (rightArc){
+    avoidMotorCommands[0] = 1700;
+    avoidMotorCommands[1] = 1700;
+    avoidMotorCommands[2] = 1700;
+    avoidMotorCommands[3] = 1700;
+  }
+
 
 }
 /*
