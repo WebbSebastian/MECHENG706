@@ -42,6 +42,8 @@ const int irsensorFR = A11; //Front Right sensor SHORT RANGE
 const int irsensorRL = A8; //Rear Left sensor LONG RANGE
 const int irsensorRR = A9; //Rear Right sensor LONG RANGE
 
+const int ir_pin_array[4] = {irsensorFL,irsensorFR,irsensorRL,irsensorRR};
+
 //---------------------------------------------- PT PINS and Variables-----------------------------------------------------//
 const int pt1 = A4;
 const int pt2 = A5;
@@ -169,9 +171,33 @@ void sensorGather(){
     pt_adc_vals[i] = analogRead(pt_pin_array[i]);
   }
   for (i = 0; i < 4; i++){
-    ir_obj_detect[i] = false;
+    ir_obj_detect[i] = isObjectDetected(i);
   }
 }
+
+bool isObjectDetected(pinIndex){
+  int irADCVal = analogRead(ir_pin_array[pinIndex]);
+  float dist = 0;
+  const int objDetectThreshold = 10; //cm
+  switch(pinIndex)
+    case 0:  //FL
+      dist = 0;
+          break;
+    case 1:  //FR
+      dist = 0;
+          break;
+    case 2:  //RL
+      dist = 0;
+          break;
+    case 3:  //RR
+      dist = 0;
+          break;
+    case default:
+      dist = 0;
+          break;
+    return (dist < objDetectThreshold);
+}
+
 
 void USReading() {
   //Serial.println("Hello");
