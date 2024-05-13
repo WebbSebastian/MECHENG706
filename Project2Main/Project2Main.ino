@@ -167,6 +167,8 @@ void loop(void) //main loop
 
 void sensorGather(){
   int i;
+
+  //calculate angle?
   for (i = 0; i < 4; i++){
     pt_adc_vals[i] = analogRead(pt_pin_array[i]);
   }
@@ -179,18 +181,20 @@ bool isObjectDetected(pinIndex){
   int irADCVal = analogRead(ir_pin_array[pinIndex]);
   float dist = 0;
   const int objDetectThreshold = 10; //cm
+
+  //old IR eqn.s (may need re-tuning)
   switch(pinIndex)
     case 0:  //FL
-      dist = 0;
+      dist = -2.405813 + (6399118 - -2.405813)/(1 + pow((irADCVal/0.0001292224),0.9124548));;
           break;
     case 1:  //FR
-      dist = 0;
+      dist = 0.2806072 + (22345370 - 0.2806072)/(1 + pow((irADCVal/0.001017839),1.190963));;
           break;
     case 2:  //RL
-      dist = 0;
+      dist = 7.619021 + (101.53)/(1 + pow((irADCVal/93.30364),1.84825));;
           break;
     case 3:  //RR
-      dist = 0;
+      dist = 6.899497 + (96.76)/(1 + pow((irADCVal/97.56561),1.884577));;
           break;
     case default:
       dist = 0;
