@@ -1,4 +1,3 @@
-
 int test = 0;
 
 #include <Servo.h>  //Need for Servo pulse output
@@ -31,26 +30,25 @@ Servo right_rear_motor;  // create servo object to control Vex Motor Controller 
 Servo right_font_motor;  // create servo object to control Vex Motor Controller 29
 Servo turret_motor;
 
-
 int speed_val = 100;
 int speed_change;
 
 //Serial Pointer
 HardwareSerial *SerialCom;
 
-////////////////////// IR SENSOR PINS //////////////
+//----------------------------------------------- IR SENSOR PINS----------------------------------------------------------//
 const int irsensorFL = A10; //Front Left sensor SHORT RANGE
 const int irsensorFR = A11; //Front Right sensor SHORT RANGE
 const int irsensorRL = A8; //Rear Left sensor LONG RANGE
 const int irsensorRR = A9; //Rear Right sensor LONG RANGE
 
-////////////////////// PT PINS and Variables //////////////
+//---------------------------------------------- PT PINS and Variables-----------------------------------------------------//
 const int pt1 = A4;
 const int pt2 = A5;
 const int pt3 = A6;
 const int pt4 = A7;
 
-////////////////////// Avoidance global variables /////////
+//----------------------------------------------- Avoidance global variables ----------------------------------------------//
 int idle = 1;
 int forwards = 0;
 int leftArc = 0;
@@ -64,8 +62,7 @@ int right = 0;
 int front = 0;
 
 int pt_pin_array[4] = {pt1,pt2,pt3,pt4};
-////////////////////// ULTRASONIC AND SERVO VARIABLES /////////////
-//Default ultrasonic ranging sensor pins, these pins are defined my the Shield
+//---------------------------------------------------- ULTRASONIC AND SERVO VARIABLES------------------------------------------//
 const int TRIG_PIN = 48;
 const int ECHO_PIN = 49;
 int servoPin = 42;
@@ -84,18 +81,19 @@ int USdegrees[3] = {95,-15,-125};
 // int USdegrees[USF] = -15; //front position 
 // int USdegrees[USR] = -125; //right position
 
-/////////////// PT VALUE ARRAY ////////////////
+//-------------------------------------- PT VALUE ARRAY------------------------------------------//
 int pt_adc_vals[4];
 
-///////////////IR Boolean ARRAY/////////
+//-----------------------------------IR Boolean ARRAY--------------------------------------------//
 bool ir_obj_detect[4]; //  {FL,FR,RL,RR} 1 if obstacle detected else 0
 
-// seek and avoid motor commands /////////////
+//----------------------------- seek and avoid motor commands -----------------------------------//
 int motorCommands[4];
 int seekMotorCommands[4];
 int avoidMotorCommands[4];
+float error = 0;
 
-//// seek state variable ////////
+//------------------------------------ seek state variable ----------------------------------------//
 #define ALIGN 0
 #define DRIVE 1
 #define EXTINGUISH 2
@@ -107,11 +105,9 @@ void setup(void)
   turret_motor.attach(servoPin);
   pinMode(LED_BUILTIN, OUTPUT);
 
-  // The Trigger pin will tell the sensor to range find
   pinMode(TRIG_PIN, OUTPUT);
   digitalWrite(TRIG_PIN, LOW);
 
-  // Setup the Serial port and pointer, the pointer allows switching the debug info through the USB port(Serial) or Bluetooth port(Serial1) with ease.
   SerialCom = &Serial;
   SerialCom->begin(115200);
   SerialCom->println("MECHENG706_Base_Code_25/01/2018");
@@ -119,8 +115,6 @@ void setup(void)
   SerialCom->println("Setup....");
 
   delay(1000); //settling time but no really needed
-
-
 }
 
 void loop(void) //main loop
@@ -141,24 +135,34 @@ void loop(void) //main loop
 
   sensorGather();
   USReading();
-  //seek();
-  avoid();
+  seek();
+  //Serial.print(seek_state);
+  //driveTo();
+  //avoid();
   suppressor();
   timeOut += 1;
-
+  
   left_font_motor.writeMicroseconds(motorCommands[0]);
   left_rear_motor.writeMicroseconds(motorCommands[1]);
   right_rear_motor.writeMicroseconds(motorCommands[2]);
   right_font_motor.writeMicroseconds(motorCommands[3]);
 
-Serial.println(USvalues[1]);
+  //Serial.print("pt4: ");
+  // Serial.print(pt_adc_vals[1]);
+  // Serial.print(',');
+  // Serial.print(1030);
+  // Serial.print(',');
+  // Serial.println(0);
+  // delay(40);
+
   // left_font_motor.writeMicroseconds(1500);
   // left_rear_motor.writeMicroseconds(1500);
   // right_rear_motor.writeMicroseconds(1500);
   // right_font_motor.writeMicroseconds(1700);
-
-delay(10);
+  delay(10);
 }
+
+
 void sensorGather(){
   int i;
   for (i = 0; i < 4; i++){
@@ -211,12 +215,11 @@ void rotateServo(int degrees){
   turret_motor.writeMicroseconds(pwS);
 }
 
-
 void seek(){
   if (seek_state == ALIGN){
     alignTo();
   } else if(seek_state == DRIVE){
-    //driveTo();
+    driveTo();
   } else if(seek_state == EXTINGUISH){
     extinguish();
   }
@@ -248,52 +251,76 @@ void alignTo(){
   }
 
 }
-// void driveTo(){
-//   float u = 300;
-//   bool detected = 0; //checks if something detected
-//   Kp = 0;  
-//   Ki = 0;
+void driveTo(){  // TODO currently this just moves forward immediately which could cause issues down the line.
+  float u = 300;
+  bool detected = 0; //checks if something detected
+  float Kp = 0.5;  
+  float Ki = 0;
 
-//   error = 0; // change to global variable
-//   integralerror = 0;
-//   bool direction = 0;
-//   int maxSpeed = 500;
+  float integralerror = 0;
+  bool direction = 1;
+  int maxSpeed = 300;
   
-
-//   //get sensor values here
-
-//   //error = right -left sensor ;
-//   intError += error;
-//   if (error > 0){
-//     direction = 1;
-//   }
-//   else{
-//     direction = 0;
-//   }
-//   int i;
-//   for (i = 0; i < 4; i++){
-//   if(ir_obj_detect[4]==1)
-//     detected = 1;
-//   }
-
-//   if(detected == 1) {
-//     avoid();
-//   }
-
-//   if(int pt_adc_vals[2]>int pt_adc_vals[3]){ 
-//     error = int pt_adc_vals[2]- int pt_adc_vals[3]
-//   }
-
-//   error = SpeedCap(Kp * error + Ki * interror, maxSpeed)
-
-//   seekMotorCommands[0] = 1500 + error*direction;
-//   seekMotorCommands[1] = 1500 + error*direction;
-//   seekMotorCommands[2] = 1500 - error*direction;
-//   seekMotorCommands[3] = 1500 - error*direction;
+  float currenterror = pt_adc_vals[1]- pt_adc_vals[0];
+  //Serial.print(currenterror);
+  //error = right -left sensor ;
+  error = currenterror;
   
-// }
+  Serial.print("pt0   ");
+  Serial.print(pt_adc_vals[0]);
+  Serial.print("                         ");
+  Serial.print("pt1   ");
+  Serial.print(pt_adc_vals[1]);
+  Serial.print("                         ");
+  // Serial.print("pt2   ");
+  // Serial.print(pt_adc_vals[2);
+  // Serial.print("                         ");
+  // Serial.print("pt3   ");
+  // Serial.println(pt_adc_vals[3]);
+
+
+
+  if (error > 0){
+    direction = 1;
+  }
+  else{
+    direction = 1;
+  }
+  int i;
+  for (i = 0; i < 4; i++){
+  if(ir_obj_detect[4]==1)
+    detected = 1;
+  }
+
+  if(detected == 1) {
+    avoid();
+  }
+  Serial.println(error);
+  error = SpeedCap(Kp * error + Ki * integralerror, maxSpeed);
+  
+  // add state change to extinguishing
+
+  seekMotorCommands[0] = 1500 - error + 200; // should a direction be added?
+  seekMotorCommands[1] = 1500 + error + 200;
+  seekMotorCommands[2] = 1500 + error - 200;
+  seekMotorCommands[3] = 1500 - error - 200;
+  
+}
+
+int SpeedCap(float speed,int maxSpeed){
+  int adjustedSpeed = speed;
+  if (speed > maxSpeed){
+    adjustedSpeed = maxSpeed;
+  }
+  else if (speed < -maxSpeed){
+    adjustedSpeed = -maxSpeed;
+  }
+
+  return adjustedSpeed;
+}
+
 void extinguish(){
-  
+ unsigned long start = millis();
 
 }
 void avoid()
@@ -427,8 +454,9 @@ void avoid(){
 */
 void suppressor(){
   int i;
-  if(0){
+  if(1){
     for (i = 0; i < 4; i++){
+    //Serial.println(error);
     motorCommands[i] = seekMotorCommands[i];
     }
   } else {
@@ -605,7 +633,6 @@ boolean is_battery_voltage_OK()
 
 }
 #endif
-
 #ifndef NO_HC-SR04
 float HC_SR04_range()
 {
@@ -630,10 +657,8 @@ float HC_SR04_range()
       return;
     }
   }
-
   // Measure how long the echo pin was held high (pulse width)
   // Note: the micros() counter will overflow after ~70 min
-
   t1 = micros();
   while ( digitalRead(ECHO_PIN) == 1)
   {
@@ -647,13 +672,9 @@ float HC_SR04_range()
 
   t2 = micros();
   pulse_width = t2 - t1;
-
-  // Calculate distance in centimeters and inches. The constants
-  // are found in the datasheet, and calculated from the assumed speed
-  //of sound in air at sea level (~340 m/s).
+  // Calculate distance in centimeters and inches. The constants are found in the datasheet, and calculated from the assumed speed of sound in air at sea level (~340 m/s).
   cm = pulse_width / 58.0;
   inches = pulse_width / 148.0;
-
   // Print out results
   if ( pulse_width > MAX_DIST ) {
     //SerialCom->println("HC-SR04: Out of range");
@@ -665,13 +686,11 @@ float HC_SR04_range()
   return cm;
 }
 #endif
-
 void Analog_Range_A4()
 {
   SerialCom->print("Analog Range A4:");
   SerialCom->println(analogRead(A4));
 }
-
 #ifndef NO_READ_GYRO
 void GYRO_reading()
 {
@@ -679,7 +698,6 @@ void GYRO_reading()
   SerialCom->println(analogRead(A3));
 }
 #endif
-
 //Serial command pasing
 void read_serial_command()
 {
@@ -907,3 +925,4 @@ void strafe_right ()
 //   }
 
 // }
+
