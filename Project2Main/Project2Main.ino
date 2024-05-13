@@ -42,8 +42,6 @@ const int irsensorFR = A11; //Front Right sensor SHORT RANGE
 const int irsensorRL = A8; //Rear Left sensor LONG RANGE
 const int irsensorRR = A9; //Rear Right sensor LONG RANGE
 
-const int ir_pin_array[4] = {irsensorFL,irsensorFR,irsensorRL,irsensorRR};
-
 //---------------------------------------------- PT PINS and Variables-----------------------------------------------------//
 const int pt1 = A4;
 const int pt2 = A5;
@@ -58,7 +56,7 @@ int rightArc = 0;
 int backwards = 0;
 int activeAvoid = 0;
 int timeOut = 0;
-int timer = 100;
+int timer = 20;
 int left = 0;
 int right = 0;
 int front = 0;
@@ -77,7 +75,7 @@ long UStimerPrev = 0;
 int USTime = 300; //ms min before US reading
 int USstate = USF;//defualt US State 
 int USstatePrev = USL; //set start sweep direction 
-float USvalues[3] = {0,0,0};// US Sensors
+float USvalues[3] = {20,20,20};// US Sensors
 int USdegrees[3] = {95,-15,-125};
 // int USdegrees[USL] = 95;//degrees needed to rotate the sensor to the left position,
 // int USdegrees[USF] = -15; //front position 
@@ -137,10 +135,10 @@ void loop(void) //main loop
 
   sensorGather();
   USReading();
-  seek();
+  //seek();
   //Serial.print(seek_state);
   //driveTo();
-  //avoid();
+  avoid();
   suppressor();
   timeOut += 1;
   
@@ -148,6 +146,36 @@ void loop(void) //main loop
   left_rear_motor.writeMicroseconds(motorCommands[1]);
   right_rear_motor.writeMicroseconds(motorCommands[2]);
   right_font_motor.writeMicroseconds(motorCommands[3]);
+
+  //Serial.println(USvalues[0]);
+  //Serial.println(USvalues[1]);
+  //Serial.println(USvalues[2]);
+  //int test = USvalues[0];
+  //Serial.print("test = ");
+  //Serial.println(test);
+  //Serial.print("idle = ");
+  //Serial.println(idle);
+  //Serial.print("right = ");
+  //Serial.println(right);
+  //Serial.print("left = ");
+  //Serial.println(left);
+  //Serial.print("front = ");
+  //Serial.println(front);
+  //Serial.print("forwards = ");
+  //Serial.println(forwards);
+  //Serial.print("leftArc = ");
+  //Serial.println(leftArc);
+  //Serial.print("rightArc = ");
+  //Serial.println(rightArc);
+  //Serial.print("backwards = ");
+  //Serial.println(backwards);
+  //Serial.print("timeOut = ");
+  //Serial.println(timeOut);
+
+  //int forwards = 0;
+//int leftArc = 0;
+//int rightArc = 0;
+//int backwards = 0;
 
   //Serial.print("pt4: ");
   // Serial.print(pt_adc_vals[1]);
@@ -161,7 +189,7 @@ void loop(void) //main loop
   // left_rear_motor.writeMicroseconds(1500);
   // right_rear_motor.writeMicroseconds(1500);
   // right_font_motor.writeMicroseconds(1700);
-  delay(10);
+  delay(100);
 }
 
 
@@ -350,27 +378,21 @@ int SpeedCap(float speed,int maxSpeed){
 }
 
 void extinguish(){
- //unsigned long start = millis();
-  Kp = 10;
-  fanPin = 12;
-  digitalWrite(fanPin,HIGH);
-  const float ideal = 4; //cm
-  float distError = ideal - USvalues[1];
-  seekMotorCommands[0] = 1500 + distError*Kp;
-  seekMotorCommands[1] = 1500 + distError*Kp;
-  seekMotorCommands[2] = 1500 - distError*Kp;
-  seekMotorCommands[3] = 1500 - distError*Kp;
+ unsigned long start = millis();
+
 }
 void avoid()
 {
+  Serial.println("TEST");
+  Serial.println(USvalues[0]);
   if (USvalues[0] <= 10){
-    int left = 1;
+    left = 1;
   }
   if (USvalues[2] <= 10){
-    int right = 1;
+    right = 1;
   }
   if (USvalues[1] <= 10){
-    int front = 1;
+    front = 1;
   }
   
   //int left = ir_obj_detect[0] + leftObj;
@@ -450,34 +472,34 @@ void avoid()
   }
 
   if (forwards){
-    avoidMotorCommands[0] = 1700;
-    avoidMotorCommands[1] = 1700;
-    avoidMotorCommands[2] = 1300;
-    avoidMotorCommands[3] = 1300;
+    avoidMotorCommands[0] = 1600;
+    avoidMotorCommands[1] = 1600;
+    avoidMotorCommands[2] = 1400;
+    avoidMotorCommands[3] = 1400;
   }
-  if (backwards){
-    avoidMotorCommands[0] = 1300;
-    avoidMotorCommands[1] = 1300;
-    avoidMotorCommands[2] = 1700;
-    avoidMotorCommands[3] = 1700;
+  else if (backwards){
+    avoidMotorCommands[0] = 1400;
+    avoidMotorCommands[1] = 1400;
+    avoidMotorCommands[2] = 1600;
+    avoidMotorCommands[3] = 1600;
   }
-  if (idle){
-    avoidMotorCommands[0] = 1700;
-    avoidMotorCommands[1] = 1700;
-    avoidMotorCommands[2] = 1300;
-    avoidMotorCommands[3] = 1300;
+  else if (idle){
+    avoidMotorCommands[0] = 1600;
+    avoidMotorCommands[1] = 1600;
+    avoidMotorCommands[2] = 1400;
+    avoidMotorCommands[3] = 1400;
   }
-  if (leftArc){
-    avoidMotorCommands[0] = 1300;
-    avoidMotorCommands[1] = 1300;
-    avoidMotorCommands[2] = 1300;
-    avoidMotorCommands[3] = 1300;
+  else if (leftArc){
+    avoidMotorCommands[0] = 1400;
+    avoidMotorCommands[1] = 1400;
+    avoidMotorCommands[2] = 1400;
+    avoidMotorCommands[3] = 1400;
   }
-  if (rightArc){
-    avoidMotorCommands[0] = 1700;
-    avoidMotorCommands[1] = 1700;
-    avoidMotorCommands[2] = 1700;
-    avoidMotorCommands[3] = 1700;
+  else if (rightArc){
+    avoidMotorCommands[0] = 1600;
+    avoidMotorCommands[1] = 1600;
+    avoidMotorCommands[2] = 1600;
+    avoidMotorCommands[3] = 1600;
   }
 
 
@@ -492,7 +514,7 @@ void avoid(){
 */
 void suppressor(){
   int i;
-  if(1){
+  if(0){
     for (i = 0; i < 4; i++){
     //Serial.println(error);
     motorCommands[i] = seekMotorCommands[i];
