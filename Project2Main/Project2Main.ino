@@ -346,8 +346,16 @@ int SpeedCap(float speed,int maxSpeed){
 }
 
 void extinguish(){
- unsigned long start = millis();
-
+ //unsigned long start = millis();
+  Kp = 10;
+  fanPin = 12;
+  digitalWrite(fanPin,HIGH);
+  const float ideal = 4; //cm
+  float distError = ideal - USvalues[1];
+  seekMotorCommands[0] = 1500 + distError*Kp;
+  seekMotorCommands[1] = 1500 + distError*Kp;
+  seekMotorCommands[2] = 1500 - distError*Kp;
+  seekMotorCommands[3] = 1500 - distError*Kp;
 }
 void avoid()
 {
