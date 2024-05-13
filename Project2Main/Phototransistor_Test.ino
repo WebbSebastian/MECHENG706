@@ -28,7 +28,8 @@
 
 class SensorDebug {
     private:
-    float readingArray[50][4];
+    float sensorAvg[4];
+    float sensorBounds[4][2];
 
 
     public:
@@ -37,10 +38,34 @@ class SensorDebug {
 
     //input constructor
     SensorDebug(float sensorArray[50][4]){
-        for(int i = 0; i < 50; i++){
-            for(int j = 0; j < 4; j++){
-                readingArray[i][j] = sensorArray[i][j];
-            }
+        double avg;
+
+        for (int j = 0; j < 4; j++){
+          avg = 0;
+        
+          for (int i = 0; i < 50; i++){
+            avg += sensorArray[i][j];
+          }
+          avg /= 50.0;
+
+          sensorAvg[j] = avg;
+        }
+
+        float localReading;
+
+        for (int j = 0; j < 4; j++){
+        sensorBounds[0][j] = sensorArray[0][j];
+        sensorBounds[1][j] = sensorArray[0][j];
+
+          for (int i = 1; i < 50; i++){
+            localReading = sensorArray[i][j];
+
+            if(localReading < sensorBounds[0][j])
+                sensorBounds[0][j] = localReading;
+
+            if(localReading > sensorBounds[1][j])
+                sensorBounds[1][j] = localReading;        
+          }
         }
     }
 
@@ -49,38 +74,18 @@ class SensorDebug {
         if(sensor > 4 || sensor <= 0)
             return -2;
 
-        double sensorAvg = 0;
-
-        for (int i = 0; i < 50; i++){
-          sensorAvg += readingArray[i][sensor - 1];
-        }
-
-        return (sensorAvg/50.0);
+        return (sensorAvg[sensor - 1]);
     }
 
     //return highest/lowest sensor readings
     float* getBounds(int sensor){
-        float bounds[2] = {-1, -1};
+        float err[2] = {-1, -1};
 
         if(sensor > 4 || sensor <= 0){
-            return  bounds;
+            return  err;
         }
 
-        bounds[1] = readingArray[0][sensor - 1];
-        bounds[2] = readingArray[0][sensor - 1];
-        float localReading;
-
-        for (int i = 1; i < 50; i++){
-            localReading = readingArray[i][sensor - 1];
-
-            if(localReading < bounds[1])
-                bounds[1] = localReading;
-
-            if(localReading > bounds[2])
-                bounds[2] = localReading;        
-        }
-
-        return bounds;
+        return sensorBounds[sensor - 1];
     }
 };
 
@@ -181,10 +186,11 @@ SensorDebug* sensorResults[5][4];
 int testStage = 0;
 
 int testStageDistance[4] = {75, 100, 150, 200};
-int testStageAngle[5] = {-30, -15, 0, 15, 30};
+int testStageAngle[5] = {-60, -30, 0, 30, 60};
 bool testMessage = true;
 
 bool startTest = false;
+bool readValues = false;
 
 float USTimer = 0;
 float USdist = 0;
@@ -228,8 +234,8 @@ void loop(void) //main loop
     case STOPPED: //Stop of Lipo Battery voltage is too low, to protect Battery
       machine_state =  stopped();
       break;
-  };
-  */
+  };*/
+  
   if (Serial.available()) // Check for input from terminal
   {
     serialRead = Serial.read(); // Read input
@@ -241,6 +247,10 @@ void loop(void) //main loop
     if (serialRead==50) // if input is 2, start testing pt
     {
       startTest = true;
+    }
+    if (serialRead==51)
+    {
+      readValues = !readValues;
     }
   }
 
@@ -274,8 +284,8 @@ void loop(void) //main loop
         
         sensorResults[testStage/4][testStage%4] = new SensorDebug(sensorValues);
         
-        
         SerialCom->println((float)sensorResults[testStage/4][testStage%4]->getAvg(1));
+
         testStage++;
         
         startTest = false;
@@ -286,23 +296,24 @@ void loop(void) //main loop
     if(testStage == 20){
       //print results
       for(int ii = 0; ii < 20; ii++){
-        SerialCom->print("@ "); SerialCom->print(testStageDistance[testStage%4]); SerialCom->print("mm, "); SerialCom->print(testStageAngle[testStage/4]); SerialCom->println("degrees:");
+        SerialCom->print("@ "); SerialCom->print(testStageDistance[ii%4]); SerialCom->print("mm, "); SerialCom->print(testStageAngle[ii/4]); SerialCom->println(" degrees:");
 
-        SerialCom->print("PT1 avg = "); SerialCom->println(sensorResults[testStage/4][testStage%4]->getAvg(1)); // could possibly add bounds aswell
-        SerialCom->print("PT2 avg = "); SerialCom->println(sensorResults[testStage/4][testStage%4]->getAvg(2)); // could possibly add bounds aswell
-        SerialCom->print("PT3 avg = "); SerialCom->println(sensorResults[testStage/4][testStage%4]->getAvg(3)); // could possibly add bounds aswell
-        SerialCom->print("PT4 avg = "); SerialCom->println(sensorResults[testStage/4][testStage%4]->getAvg(4)); // could possibly add bounds aswell
+        SerialCom->print("PT1 avg = "); SerialCom->println(sensorResults[ii/4][ii%4]->getAvg(1)); // could possibly add bounds aswell
+        SerialCom->print("PT2 avg = "); SerialCom->println(sensorResults[ii/4][ii%4]->getAvg(2)); // could possibly add bounds aswell
+        SerialCom->print("PT3 avg = "); SerialCom->println(sensorResults[ii/4][ii%4]->getAvg(3)); // could possibly add bounds aswell
+        SerialCom->print("PT4 avg = "); SerialCom->println(sensorResults[ii/4][ii%4]->getAvg(4)); // could possibly add bounds aswell
       } 
 
       startTest = false;
       testMessage = false;      
     }
-
+    
     rotateServo(testStageAngle[testStage/4]);
 
     if(testMessage){
       SerialCom->print("Position robot at "); SerialCom->print(testStageDistance[testStage%4]); SerialCom->print("mm from fire. ");
       SerialCom->println("Input character 2 when done.");
+      SerialCom->println("Input character 3 to switch between printing PT/US values");
       delay(5000);
       
       testMessage = false;      
@@ -310,7 +321,18 @@ void loop(void) //main loop
     
     if((millis() - USTimer) > 100){
       USdist = HC_SR04_range() * 10;
-      SerialCom->print("Current position: "); SerialCom->print(USdist); SerialCom->println("mm");
+
+      if(!readValues){
+        SerialCom->print("Current position: "); SerialCom->print(USdist); SerialCom->println("mm");
+      }
+      else{
+        SerialCom->print("PT1: "); SerialCom->print(adc1); SerialCom->print(" | ");
+        SerialCom->print("PT2: "); SerialCom->print(adc2); SerialCom->print(" | ");
+        SerialCom->print("PT3: "); SerialCom->print(adc3); SerialCom->print(" | ");
+        SerialCom->print("PT4: "); SerialCom->println(adc4);
+      }
+
+
 
       USTimer = millis();
     }
