@@ -72,14 +72,11 @@ int servoPin = 42;
 #define USR 2 //Ultrasonic right
 long UStimer = 0;
 long UStimerPrev = 0;
-int USTime = 300; //ms min before US reading
+int USTime = 175; //ms min before US reading
 int USstate = USF;//defualt US State 
 int USstatePrev = USL; //set start sweep direction 
 float USvalues[3] = {20,20,20};// US Sensors
-int USdegrees[3] = {95,-15,-125};
-// int USdegrees[USL] = 95;//degrees needed to rotate the sensor to the left position,
-// int USdegrees[USF] = -15; //front position 
-// int USdegrees[USR] = -125; //right position
+int USdegrees[3] = {110,0,-110};
 
 //-------------------------------------- PT VALUE ARRAY------------------------------------------//
 int pt_adc_vals[4];
@@ -237,8 +234,8 @@ void USReading() {
   //Serial.println("Hello");
   UStimer = millis() - UStimerPrev;
   if (UStimer >= USTime) {
+    USvalues[USstate] = HC_SR04_range();
     if (USstate == USF) {
-      USvalues[USF] = HC_SR04_range();
       if (USstatePrev == USL) {
         USstate = USR;
       } else {
@@ -247,12 +244,10 @@ void USReading() {
       USstatePrev = USF; // Track the current state as the previous state
     }
     else if (USstate == USL) {
-      USvalues[USL] = HC_SR04_range();
       USstatePrev = USL; // Keep this to track this state was last
       USstate = USF; // Move to USR after USL
     }
     else if (USstate == USR) {
-      USvalues[USR] = HC_SR04_range();
       USstatePrev = USR; // Track this as the last state
       USstate = USF; // Reset back to USF to complete the cycle
     }
@@ -563,9 +558,6 @@ STATE running() {
 #ifndef NO_BATTERY_V_OK
     if (!is_battery_voltage_OK()) return STOPPED;
 #endif
-
-
-    turret_motor.write(pos);
 
     if (pos == 0)
     {
