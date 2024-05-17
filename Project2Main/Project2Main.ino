@@ -41,13 +41,13 @@ const int irsensorFL = A10; //Front Left sensor SHORT RANGE
 const int irsensorFR = A11; //Front Right sensor SHORT RANGE
 const int irsensorRL = A8; //Rear Left sensor LONG RANGE
 const int irsensorRR = A9; //Rear Right sensor LONG RANGE
-
+int ir_pin_array[4] = {irsensorFL,irsensorFR,irsensorRL,irsensorRR};
 //---------------------------------------------- PT PINS and Variables-----------------------------------------------------//
 const int pt1 = A4;
 const int pt2 = A5;
 const int pt3 = A6;
 const int pt4 = A7;
-
+int pt_pin_array[4] = {pt1,pt2,pt3,pt4};
 //----------------------------------------------- Avoidance global variables ----------------------------------------------//
 int idle = 1;
 int forwards = 0;
@@ -61,7 +61,7 @@ int left = 0;
 int right = 0;
 int front = 0;
 
-int pt_pin_array[4] = {pt1,pt2,pt3,pt4};
+
 //---------------------------------------------------- ULTRASONIC AND SERVO VARIABLES------------------------------------------//
 const int TRIG_PIN = 48;
 const int ECHO_PIN = 49;
@@ -135,9 +135,9 @@ void loop(void) //main loop
 
   sensorGather();
   USReading();
-  //seek();
+  seek();
   //Serial.print(seek_state);
-  //driveTo();
+  driveTo();
   avoid();
   suppressor();
   timeOut += 1;
@@ -205,13 +205,14 @@ void sensorGather(){
   }
 }
 
-bool isObjectDetected(pinIndex){
+bool isObjectDetected(int pinIndex){
   int irADCVal = analogRead(ir_pin_array[pinIndex]);
   float dist = 0;
   const int objDetectThreshold = 10; //cm
 
   //old IR eqn.s (may need re-tuning)
-  switch(pinIndex)
+  switch(pinIndex){
+
     case 0:  //FL
       dist = -2.405813 + (6399118 - -2.405813)/(1 + pow((irADCVal/0.0001292224),0.9124548));;
           break;
@@ -224,10 +225,11 @@ bool isObjectDetected(pinIndex){
     case 3:  //RR
       dist = 6.899497 + (96.76)/(1 + pow((irADCVal/97.56561),1.884577));;
           break;
-    case default:
+    default:
       dist = 0;
           break;
     return (dist < objDetectThreshold);
+  }
 }
 
 
