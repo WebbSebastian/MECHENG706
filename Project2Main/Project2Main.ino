@@ -299,7 +299,7 @@ void alignTo(){
     seekMotorCommands[2] = 1500 + alignError;
     seekMotorCommands[3] = 1500 + alignError;
     if (alignError < 10){
-      //seek_state = DRIVE;
+      seek_state = DRIVE;
     }
   } else if(!alignError) {
     seekMotorCommands[0] = 1600;
