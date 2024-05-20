@@ -387,11 +387,20 @@ void avoid()
   if (USvalues[0] <= 10){
     left = 1;
   }
+  else {
+    left = 0;
+  }
   if (USvalues[2] <= 10){
     right = 1;
   }
+  else{
+    right = 0;
+  }
   if (USvalues[1] <= 10){
     front = 1;
+  }
+  else{
+    front = 0;
   }
   
   //int left = ir_obj_detect[0] + leftObj;
