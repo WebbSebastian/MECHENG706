@@ -56,12 +56,14 @@ int rightArc = 0;
 int backwards = 0;
 int activeAvoid = 0;
 int timeOut = 0;
-int timer = 20;
+int timer = 100;
 int left = 0;
 int right = 0;
 int front = 0;
 int motorUpper = 1600;
 int motorLower = 1400;
+float leftSide = 0;
+float rightSide = 0;
 
 
 //---------------------------------------------------- ULTRASONIC AND SERVO VARIABLES------------------------------------------//
@@ -134,9 +136,9 @@ void loop(void) //main loop
 
   sensorGather();
   USReading();
-  seek();
+  //seek();
   //Serial.print(seek_state);
-  driveTo();
+  //driveTo();
   avoid();
   suppressor();
   timeOut += 1;
@@ -188,7 +190,7 @@ void loop(void) //main loop
   // left_rear_motor.writeMicroseconds(1500);
   // right_rear_motor.writeMicroseconds(1500);
   // right_font_motor.writeMicroseconds(1700);
-  delay(100);
+  delay(10);
 }
 
 
@@ -384,13 +386,13 @@ void avoid()
 {
   Serial.println("TEST");
   Serial.println(USvalues[0]);
-  if (USvalues[0] <= 10){
+  if (USvalues[0] <= 15){
     left = 1;
   }
   else {
     left = 0;
   }
-  if (USvalues[2] <= 10){
+  if (USvalues[2] <= 15){
     right = 1;
   }
   else{
@@ -403,11 +405,16 @@ void avoid()
     front = 0;
   }
   
-  //int left = ir_obj_detect[0] + leftObj;
-  //int right = ir_obj_detect[1] + rightObj;
+  leftSide = ir_obj_detect[0];
+  rightSide = ir_obj_detect[1];
 
   if (idle){
-    if(right){
+    if(front){
+      idle = 0;
+      timeOut = 0;
+      backwards = 1;
+    }
+    else if(right){
       idle = 0;
       timeOut = 0;
       if (left){
@@ -422,6 +429,7 @@ void avoid()
       timeOut = 0;
       rightArc = 1;
     }
+    
   }
 
   if (forwards){
@@ -464,7 +472,12 @@ void avoid()
   }
 
   if (leftArc){
-    if (timeOut >= timer){
+    if (leftSide <= 5){
+      leftArc = 0;
+      timeOut = 0;
+      backwards = 1;
+    }
+    else if (timeOut >= timer){
       leftArc = 0;
       timeOut = 0;
       forwards = 1;
@@ -472,7 +485,12 @@ void avoid()
   }
 
   if (rightArc){
-    if (timeOut >= timer){
+    if (rightSide <= 5){
+      rightArc = 0;
+      timeOut = 0;
+      backwards = 1;
+    }
+    else if (timeOut >= timer){
       rightArc = 0;
       timeOut = 0;
       forwards = 1;
