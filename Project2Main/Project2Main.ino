@@ -60,6 +60,8 @@ int timer = 20;
 int left = 0;
 int right = 0;
 int front = 0;
+int motorUpper = 1600;
+int motorLower = 1400;
 
 
 //---------------------------------------------------- ULTRASONIC AND SERVO VARIABLES------------------------------------------//
@@ -469,34 +471,34 @@ void avoid()
   }
 
   if (forwards){
-    avoidMotorCommands[0] = 1600;
-    avoidMotorCommands[1] = 1600;
-    avoidMotorCommands[2] = 1400;
-    avoidMotorCommands[3] = 1400;
+    avoidMotorCommands[0] = motorUpper;
+    avoidMotorCommands[1] = motorUpper;
+    avoidMotorCommands[2] = motorLower;
+    avoidMotorCommands[3] = motorLower;
   }
   else if (backwards){
-    avoidMotorCommands[0] = 1400;
-    avoidMotorCommands[1] = 1400;
-    avoidMotorCommands[2] = 1600;
-    avoidMotorCommands[3] = 1600;
+    avoidMotorCommands[0] = motorLower;
+    avoidMotorCommands[1] = motorLower;
+    avoidMotorCommands[2] = motorUpper;
+    avoidMotorCommands[3] = motorUpper;
   }
   else if (idle){
-    avoidMotorCommands[0] = 1600;
-    avoidMotorCommands[1] = 1600;
-    avoidMotorCommands[2] = 1400;
-    avoidMotorCommands[3] = 1400;
+    avoidMotorCommands[0] = motorUpper;
+    avoidMotorCommands[1] = motorUpper;
+    avoidMotorCommands[2] = motorLower;
+    avoidMotorCommands[3] = motorLower;
   }
   else if (leftArc){
-    avoidMotorCommands[0] = 1400;
-    avoidMotorCommands[1] = 1400;
-    avoidMotorCommands[2] = 1400;
-    avoidMotorCommands[3] = 1400;
+    avoidMotorCommands[0] = motorLower;
+    avoidMotorCommands[1] = motorLower;
+    avoidMotorCommands[2] = motorLower;
+    avoidMotorCommands[3] = motorLower;
   }
   else if (rightArc){
-    avoidMotorCommands[0] = 1600;
-    avoidMotorCommands[1] = 1600;
-    avoidMotorCommands[2] = 1600;
-    avoidMotorCommands[3] = 1600;
+    avoidMotorCommands[0] = motorUpper;
+    avoidMotorCommands[1] = motorUpper;
+    avoidMotorCommands[2] = motorUpper;
+    avoidMotorCommands[3] = motorUpper;
   }
 
 
