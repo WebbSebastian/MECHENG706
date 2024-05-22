@@ -152,10 +152,10 @@ int pt2 = A5;
 int pt3 = A6;
 int pt4 = A7;
 
-const int irsensorFL = A10; //Front Left sensor SHORT RANGE
+const int irsensorFL = A9; //Front Left sensor SHORT RANGE
 const int irsensorFR = A11; //Front Right sensor SHORT RANGE
 const int irsensorRL = A8; //Rear Left sensor LONG RANGE
-const int irsensorRR = A9; //Rear Right sensor LONG RANGE
+const int irsensorRR = A10; //Rear Right sensor LONG RANGE
 
 int sensorPin = A2;         //define the pin that gyro is connected 
 int T = 100;                // T is the time of one loop, 0.1 sec
@@ -228,7 +228,7 @@ void setup(void)
 
 void loop(void) //main loop
 {
-  /*
+  
   static STATE machine_state = INITIALISING;
   //Finite-state machine Code
   switch (machine_state) {
@@ -241,7 +241,7 @@ void loop(void) //main loop
     case STOPPED: //Stop of Lipo Battery voltage is too low, to protect Battery
       machine_state =  stopped();
       break;
-  };*/
+  };
 
     if (Serial.available()) // Check for input from terminal
     {
@@ -253,7 +253,7 @@ void loop(void) //main loop
 
         if (serialRead==50) // if input is 2, start testing pt
         {
-            read_cm = true;
+            read_cm = !read_cm;
         }
     }
 
@@ -264,16 +264,18 @@ void loop(void) //main loop
     adc4 = analogRead(irsensorRR);
 
     if (read_cm){
-        adc1 = -2.405813 + (6399118 - -2.405813)/(1 + pow((irADCVal/0.0001292224),0.9124548));
-        adc2 = 0.2806072 + (22345370 - 0.2806072)/(1 + pow((irADCVal/0.001017839),1.190963));
-        adc3 = 7.619021 + (101.53)/(1 + pow((irADCVal/93.30364),1.84825));
-        adc4 = 6.899497 + (96.76)/(1 + pow((irADCVal/97.56561),1.884577));        
+        adc1 = 1.552784 + (37047010 - 1.552784)/(1 + pow((adc1/0.003269664),1.361069));
+        adc2 = -0.7084069 + (36.47473 - -0.7084069)/(1 + pow((adc2/111.6309),1.182963));
+        adc3 = 7.619021 + (101.53)/(1 + pow((adc3/93.30364),1.84825));
+        adc4 = 6.899497 + (96.76)/(1 + pow((adc4/97.56561),1.884577));        
     }
 
     SerialCom->print("IR_FL: "); SerialCom->print(adc1); SerialCom->print(" | ");
     SerialCom->print("IR_FR: "); SerialCom->print(adc2); SerialCom->print(" | ");
     SerialCom->print("IR_RL: "); SerialCom->print(adc3); SerialCom->print(" | ");
     SerialCom->print("IR_RR: "); SerialCom->println(adc4);
+
+    delay(500);
   /*
   float volts1 = adc1*4.3/1024.0;
   float volts2 = adc2*4.3/1024.0;
@@ -297,7 +299,7 @@ STATE running() {
 
   static unsigned long previous_millis;
 
-  read_serial_command();
+  //read_serial_command();
   fast_flash_double_LED_builtin();
 
   if (millis() - previous_millis > 500) {  //Arduino style 500ms timed execution statement
@@ -320,16 +322,7 @@ STATE running() {
     #endif
 
 
-        turret_motor.write(pos);
 
-        if (pos == 0)
-        {
-          pos = 45;
-        }
-        else
-        {
-          pos = 0;
-        }
   }
 
   return RUNNING;
@@ -525,85 +518,24 @@ void GYRO_reading()
 }
 #endif
 
-//Serial command pasing
-void read_serial_command()
+void disable_motors()
 {
-  if (SerialCom->available()) {
-    char val = SerialCom->read();
-    SerialCom->print("Speed:");
-    SerialCom->print(speed_val);
-    SerialCom->print(" ms ");
+  left_front_motor.detach();  // detach the servo on pin left_front to turn Vex Motor Controller 29 Off
+  left_rear_motor.detach();  // detach the servo on pin left_rear to turn Vex Motor Controller 29 Off
+  right_rear_motor.detach();  // detach the servo on pin right_rear to turn Vex Motor Controller 29 Off
+  right_front_motor.detach();  // detach the servo on pin right_front to turn Vex Motor Controller 29 Off
 
-    //Perform an action depending on the command
-    switch (val) {
-      case 'w'://Move Forward
-      case 'W':
-        forward ();
-        SerialCom->println("Forward");
-        break;
-      case 's'://Move Backwards
-      case 'S':
-        reverse ();
-        SerialCom->println("Backwards");
-        break;
-      case 'q'://Turn Left
-      case 'Q':
-        strafe_left();
-        SerialCom->println("Strafe Left");
-        break;
-      case 'e'://Turn Right
-      case 'E':
-        strafe_right();
-        SerialCom->println("Strafe Right");
-        break;
-      case 'a'://Turn Right
-      case 'A':
-        ccw();
-        SerialCom->println("ccw");
-        break;
-      case 'd'://Turn Right
-      case 'D':
-        cw();
-        SerialCom->println("cw");
-        break;
-      case '-'://Turn Right
-      case '_':
-        speed_change = -100;
-        SerialCom->println("-100");
-        break;
-      case '=':
-      case '+':
-        speed_change = 100;
-        SerialCom->println("+");
-        break;
-      default:
-        stop();
-        SerialCom->println("stop");
-        break;
-      case 'h'://Turn Right
-      case 'H':
-        diagonal_upright();
-        SerialCom->println("diagonal_upright");
-        break;
-      case 'g'://Turn Right
-      case 'G':
-        diagonal_upleft();
-        SerialCom->println("diagonal_upleft");
-        break;
-      case 'n'://Turn Right
-      case 'N':
-        diagonal_downright();
-        SerialCom->println("diagonal_downright");
-        break;
-      case 'b'://Turn Right
-      case 'B':
-        diagonal_downleft();
-        SerialCom->println("diagonal_downleft");
-        break;
-    }
-
-  }
-
+  pinMode(left_front, INPUT);
+  pinMode(left_rear, INPUT);
+  pinMode(right_rear, INPUT);
+  pinMode(right_front, INPUT);
 }
 
+void enable_motors()
+{
+  left_front_motor.attach(left_front);  // attaches the servo on pin left_front to turn Vex Motor Controller 29 On
+  left_rear_motor.attach(left_rear);  // attaches the servo on pin left_rear to turn Vex Motor Controller 29 On
+  right_rear_motor.attach(right_rear);  // attaches the servo on pin right_rear to turn Vex Motor Controller 29 On
+  right_front_motor.attach(right_front);  // attaches the servo on pin right_front to turn Vex Motor Controller 29 On
+}
 
