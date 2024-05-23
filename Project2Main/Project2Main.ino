@@ -101,6 +101,8 @@ float error = 0;
 int seek_state = 0;
 
 int pos = 0;
+//------------------------------------ align variables ----------------------------------------//
+int lastFireDetected = 0;
 void setup(void)
 {
   turret_motor.attach(servoPin);
@@ -291,10 +293,12 @@ void alignTo(){
   for (i = 0; i < 4;i++){
     if (pt_adc_vals[i] < 0.98*1023){
       fireDetected = true;
+      lastFireDetected = millis();
     }
   }
   alignError = alignError*5;
-  if(fireDetected){
+  if(fireDetected || ((millis() - lastFireDetected) <= 200)){
+    
     seekMotorCommands[0] = 1500 + alignError;
     seekMotorCommands[1] = 1500 + alignError;
     seekMotorCommands[2] = 1500 + alignError;
