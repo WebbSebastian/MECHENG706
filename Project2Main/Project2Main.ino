@@ -236,7 +236,7 @@ bool isObjectDetected(int pinIndex){
 
 
 void USReading() {
-  if (millis() - UStimerPrev >= USTime) {
+  if (millis() - UStimerPrev >= USTime) {//has the required time interval elapsed
     USvalues[USstate] = HC_SR04_range();//get reading for current sensor position 
     if (USstate == USF) {//If the state is front get the next state
       if (USstatePrev == USL) {
@@ -247,10 +247,10 @@ void USReading() {
     }
     else {
       if (USstate == USL) {
-        USstatePrev = USL; // Keep this to track this state was last
+        USstatePrev = USL; // Keep prev value to know which way to rotate when the servo is facing foward 
       }
       else /*if (USstate == USR)*/ {
-        USstatePrev = USR; // Track this as the last state
+        USstatePrev = USR;
       }
       USstate = USF; // Reset back to USF to complete the cycle
     }
