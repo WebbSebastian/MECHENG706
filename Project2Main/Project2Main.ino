@@ -74,7 +74,6 @@ int servoPin = 42;
 #define USL 0 //Ultrasonic left
 #define USF 1 //Ultrasonic Front
 #define USR 2 //Ultrasonic right
-long UStimer = 0;
 long UStimerPrev = 0;
 int USTime = 175; //ms min before US reading
 int USstate = USF;//defualt US State 
@@ -237,8 +236,7 @@ bool isObjectDetected(int pinIndex){
 
 
 void USReading() {
-  UStimer = millis() - UStimerPrev;
-  if (UStimer >= USTime) {
+  if (millis() - UStimerPrev >= USTime) {
     USvalues[USstate] = HC_SR04_range();//get reading for current sensor position 
     if (USstate == USF) {//If the state is front get the next state
       if (USstatePrev == USL) {
