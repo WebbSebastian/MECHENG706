@@ -299,10 +299,10 @@ void alignTo(){
   alignError = alignError*5;
   if(fireDetected || ((millis() - lastFireDetected) <= 200)){
     
-    seekMotorCommands[0] = 1500 + alignError;
-    seekMotorCommands[1] = 1500 + alignError;
-    seekMotorCommands[2] = 1500 + alignError;
-    seekMotorCommands[3] = 1500 + alignError;
+    seekMotorCommands[0] = 1500 + SpeedCap( alignError, 300);
+    seekMotorCommands[1] = 1500 + SpeedCap( alignError, 300);
+    seekMotorCommands[2] = 1500 + SpeedCap( alignError, 300);
+    seekMotorCommands[3] = 1500 + SpeedCap( alignError, 300);
     if (alignError < 10){
       seek_state = DRIVE;
     }
