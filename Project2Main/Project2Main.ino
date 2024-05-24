@@ -237,24 +237,23 @@ bool isObjectDetected(int pinIndex){
 
 
 void USReading() {
-  //Serial.println("Hello");
   UStimer = millis() - UStimerPrev;
   if (UStimer >= USTime) {
-    USvalues[USstate] = HC_SR04_range();
-    if (USstate == USF) {
+    USvalues[USstate] = HC_SR04_range();//get reading for current sensor position 
+    if (USstate == USF) {//If the state is front get the next state
       if (USstatePrev == USL) {
         USstate = USR;
-      } else {
+      } else /*if (USstatePrev == USR)*/{
         USstate = USL;
       }
-      USstatePrev = USF; // Track the current state as the previous state
     }
-    else if (USstate == USL) {
-      USstatePrev = USL; // Keep this to track this state was last
-      USstate = USF; // Move to USR after USL
-    }
-    else if (USstate == USR) {
-      USstatePrev = USR; // Track this as the last state
+    else {
+      if (USstate == USL) {
+        USstatePrev = USL; // Keep this to track this state was last
+      }
+      else /*if (USstate == USR)*/ {
+        USstatePrev = USR; // Track this as the last state
+      }
       USstate = USF; // Reset back to USF to complete the cycle
     }
     rotateServo(USdegrees[USstate]); // Adjust servo position based on current state
