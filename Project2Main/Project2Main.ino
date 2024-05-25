@@ -86,8 +86,6 @@ int servoPin = 42;
 #define USL 0 //Ultrasonic left
 #define USF 1 //Ultrasonic Front
 #define USR 2 //Ultrasonic right
-
-long UStimer = 0;
 long UStimerPrev = 0;
 int USTime = 175; //ms min before US reading
 int USstate = USF;//defualt US State 
@@ -229,25 +227,22 @@ float irReadingCm(int pinIndex){
 
 
 void USReading() {
-  //Serial.println("Hello");
-  UStimer = millis() - UStimerPrev;
-  if (UStimer >= USTime) {
-    Serial.print("US State: "); Serial.println(USstate);
-    USvalues[USstate] = HC_SR04_range();
-    if (USstate == USF) {
+  if (millis() - UStimerPrev >= USTime) {//has the required time interval elapsed
+    USvalues[USstate] = HC_SR04_range();//get reading for current sensor position 
+    if (USstate == USF) {//If the state is front get the next state
       if (USstatePrev == USL) {
         USstate = USR;
-      } else {
+      } else /*if (USstatePrev == USR)*/{
         USstate = USL;
       }
-      USstatePrev = USF; // Track the current state as the previous state
     }
-    else if (USstate == USL) {
-      USstatePrev = USL; // Keep this to track this state was last
-      USstate = USF; // Move to USR after USL
-    }
-    else if (USstate == USR) {
-      USstatePrev = USR; // Track this as the last state
+    else {
+      if (USstate == USL) {
+        USstatePrev = USL; // Keep prev value to know which way to rotate when the servo is facing foward 
+      }
+      else /*if (USstate == USR)*/ {
+        USstatePrev = USR;
+      }
       USstate = USF; // Reset back to USF to complete the cycle
     }
     rotateServo(USdegrees[USstate]); // Adjust servo position based on current state
@@ -293,10 +288,10 @@ void alignTo(){
   alignError = alignError*5;
   if(fireDetected || ((millis() - lastFireDetected) <= 200)){
     
-    seekMotorCommands[0] = 1500 + alignError;
-    seekMotorCommands[1] = 1500 + alignError;
-    seekMotorCommands[2] = 1500 + alignError;
-    seekMotorCommands[3] = 1500 + alignError;
+    seekMotorCommands[0] = 1500 + SpeedCap( alignError, 300);
+    seekMotorCommands[1] = 1500 + SpeedCap( alignError, 300);
+    seekMotorCommands[2] = 1500 + SpeedCap( alignError, 300);
+    seekMotorCommands[3] = 1500 + SpeedCap( alignError, 300);
     if (alignError < 10){
       seek_state = DRIVE;
     }
