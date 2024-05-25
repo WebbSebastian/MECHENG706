@@ -49,14 +49,24 @@ const int pt3 = A6;
 const int pt4 = A7;
 int pt_pin_array[4] = {pt1,pt2,pt3,pt4};
 //----------------------------------------------- Avoidance global variables ----------------------------------------------//
-int idle = 1;
-int forwards = 0;
-int leftArc = 0;
-int rightArc = 0;
-int backwards = 0;
+
+typedef enum{
+    IDLE,
+    FORWARDS,
+    BACKWARDS,
+    LEFTARC,
+    RIGHTARC
+} AVOIDSTATE;
+
+AVOIDSTATE currentAvoidState = IDLE;
+AVOIDSTATE prevAvoidStates[10];
+
+int prevAvoidIndex = 0;
+
 int activeAvoid = 0;
 int timeOut = 0;
-int timer = 100;
+int timeOutTotal = 0;
+int timer = 1000;
 int left = 0;
 int right = 0;
 int front = 0;
@@ -64,16 +74,19 @@ int motorUpper = 1600;
 int motorLower = 1400;
 float leftSide = 0;
 float rightSide = 0;
+bool debugAvoid = 0;
 
 
 //---------------------------------------------------- ULTRASONIC AND SERVO VARIABLES------------------------------------------//
 const int TRIG_PIN = 48;
 const int ECHO_PIN = 49;
+const int FAN_PIN = 45;
 int servoPin = 42;
 
 #define USL 0 //Ultrasonic left
 #define USF 1 //Ultrasonic Front
 #define USR 2 //Ultrasonic right
+
 long UStimer = 0;
 long UStimerPrev = 0;
 int USTime = 175; //ms min before US reading
@@ -109,7 +122,10 @@ void setup(void)
   pinMode(LED_BUILTIN, OUTPUT);
 
   pinMode(TRIG_PIN, OUTPUT);
+  pinMode(FAN_PIN, OUTPUT);
+
   digitalWrite(TRIG_PIN, LOW);
+  digitalWrite(FAN_PIN, LOW);
 
   SerialCom = &Serial;
   SerialCom->begin(115200);
@@ -117,7 +133,8 @@ void setup(void)
   delay(1000);
   SerialCom->println("Setup....");
 
-  delay(1000); //settling time but no really needed
+  delay(1000); //settling time but no really needed  
+  timeOutTotal = millis();
 }
 
 void loop(void) //main loop
@@ -136,6 +153,7 @@ void loop(void) //main loop
       break;
   };
 
+
   sensorGather();
   USReading();
   //seek();
@@ -143,55 +161,12 @@ void loop(void) //main loop
   //driveTo();
   avoid();
   suppressor();
-  timeOut += 1;
   
   left_font_motor.writeMicroseconds(motorCommands[0]);
   left_rear_motor.writeMicroseconds(motorCommands[1]);
   right_rear_motor.writeMicroseconds(motorCommands[2]);
   right_font_motor.writeMicroseconds(motorCommands[3]);
 
-  //Serial.println(USvalues[0]);
-  //Serial.println(USvalues[1]);
-  //Serial.println(USvalues[2]);
-  //int test = USvalues[0];
-  //Serial.print("test = ");
-  //Serial.println(test);
-  //Serial.print("idle = ");
-  //Serial.println(idle);
-  //Serial.print("right = ");
-  //Serial.println(right);
-  //Serial.print("left = ");
-  //Serial.println(left);
-  //Serial.print("front = ");
-  //Serial.println(front);
-  //Serial.print("forwards = ");
-  //Serial.println(forwards);
-  //Serial.print("leftArc = ");
-  //Serial.println(leftArc);
-  //Serial.print("rightArc = ");
-  //Serial.println(rightArc);
-  //Serial.print("backwards = ");
-  //Serial.println(backwards);
-  //Serial.print("timeOut = ");
-  //Serial.println(timeOut);
-
-  //int forwards = 0;
-//int leftArc = 0;
-//int rightArc = 0;
-//int backwards = 0;
-
-  //Serial.print("pt4: ");
-  // Serial.print(pt_adc_vals[1]);
-  // Serial.print(',');
-  // Serial.print(1030);
-  // Serial.print(',');
-  // Serial.println(0);
-  // delay(40);
-
-  // left_font_motor.writeMicroseconds(1500);
-  // left_rear_motor.writeMicroseconds(1500);
-  // right_rear_motor.writeMicroseconds(1500);
-  // right_font_motor.writeMicroseconds(1700);
   delay(10);
 }
 
@@ -209,13 +184,29 @@ void sensorGather(){
 }
 
 bool isObjectDetected(int pinIndex){
+  
+  int objDetectThreshold; //cm
+
+  if (pinIndex >= 0 && pinIndex < 2){
+    objDetectThreshold = 5;
+  }
+  else if (pinIndex >=2 && pinIndex < 4){
+    objDetectThreshold = 10;
+  }
+  else{
+    return false;
+  }
+
+  float dist = irReadingCm(pinIndex);
+
+  return (dist < objDetectThreshold);
+}
+
+float irReadingCm(int pinIndex){
   int irADCVal = analogRead(ir_pin_array[pinIndex]);
   float dist = 0;
-  const int objDetectThreshold = 10; //cm
 
-  //old IR eqn.s (may need re-tuning)
   switch(pinIndex){
-
     case 0:  //FL
       dist = 1.552784 + (37047010 - 1.552784)/(1 + pow((irADCVal/0.003269664),1.361069));
           break;
@@ -231,8 +222,9 @@ bool isObjectDetected(int pinIndex){
     default:
       dist = 0;
           break;
-    return (dist < objDetectThreshold);
   }
+
+  return dist;
 }
 
 
@@ -240,6 +232,7 @@ void USReading() {
   //Serial.println("Hello");
   UStimer = millis() - UStimerPrev;
   if (UStimer >= USTime) {
+    Serial.print("US State: "); Serial.println(USstate);
     USvalues[USstate] = HC_SR04_range();
     if (USstate == USF) {
       if (USstatePrev == USL) {
@@ -286,6 +279,7 @@ void seek(){
   }
   //using pt array and IR array figure out motor commands
 }
+
 void alignTo(){
   int alignError = 3*pt_adc_vals[0] + pt_adc_vals[1] - pt_adc_vals[2] - 3*pt_adc_vals[3];
   int i;
@@ -329,12 +323,12 @@ void driveTo(){  // TODO currently this just moves forward immediately which cou
   //error = right -left sensor ;
   error = currenterror;
   
-  Serial.print("pt0   ");
-  Serial.print(pt_adc_vals[0]);
-  Serial.print("                         ");
-  Serial.print("pt1   ");
-  Serial.print(pt_adc_vals[1]);
-  Serial.print("                         ");
+  //Serial.print("pt0   ");
+  //Serial.print(pt_adc_vals[0]);
+  //Serial.print("                         ");
+  //Serial.print("pt1   ");
+  //Serial.print(pt_adc_vals[1]);
+  //Serial.print("                         ");
   // Serial.print("pt2   ");
   // Serial.print(pt_adc_vals[2);
   // Serial.print("                         ");
@@ -388,15 +382,26 @@ void extinguish(){
 }
 void avoid()
 {
-  Serial.println("TEST");
-  Serial.println(USvalues[0]);
-  if (USvalues[0] <= 15){
+  if(debugAvoid){
+    Serial.print("avoidState: "); Serial.print(currentAvoidState);
+    Serial.print(", timeOut: "); Serial.print(timeOut); 
+    Serial.print(", left: "); Serial.print(left); 
+    Serial.print(", right: "); Serial.print(right); 
+    Serial.print(", front: "); Serial.print(front); 
+    Serial.print(", leftSide: "); Serial.print(leftSide); 
+    Serial.print(", rightSide: "); Serial.println(rightSide);
+  }
+
+  timeOut += millis() - timeOutTotal;
+  timeOutTotal = millis();
+
+  if (USvalues[0] <= 24){
     left = 1;
   }
   else {
     left = 0;
   }
-  if (USvalues[2] <= 15){
+  if (USvalues[2] <= 24){
     right = 1;
   }
   else{
@@ -412,136 +417,125 @@ void avoid()
   leftSide = ir_obj_detect[0];
   rightSide = ir_obj_detect[1];
 
-  if (idle){
-    if(front){
-      idle = 0;
-      timeOut = 0;
-      backwards = 1;
-    }
-    else if(right){
-      idle = 0;
-      timeOut = 0;
-      if (left){
-        backwards = 1;
+
+  switch(currentAvoidState){
+    case IDLE:
+      if(front){
+        changeAvoidState(BACKWARDS);
       }
-      else{
-        leftArc = 1;
+      else if(right){
+        if (left){
+          changeAvoidState(BACKWARDS);
+        }
+        else{
+          changeAvoidState(LEFTARC);
+        }
       }
-    }
-    else if (left){
-      idle = 0;
-      timeOut = 0;
-      rightArc = 1;
-    }
-    
-  }
-
-  if (forwards){
-    if (right){
-      forwards = 0;
-      timeOut = 0;
-      if (left){
-        backwards = 1;
+      else if (left){
+        changeAvoidState(RIGHTARC);
       }
-      else{
-        leftArc = 1;
+      break;
+    case FORWARDS:
+      if (right){
+        if (left){
+          changeAvoidState(BACKWARDS);
+        }
+        else{
+          changeAvoidState(LEFTARC);
+        }
       }
-    }
-    else if (left){
-      forwards = 0;
-      timeOut = 0;
-      rightArc = 1;
-    }
-    else if (front){
-      backwards = 1;
-      forwards = 0;
-      timeOut = 0;
-    }
-    else if (ir_obj_detect[0] || ir_obj_detect[1]){
-      timeOut = 0;
-    }
+      else if (left){
+        changeAvoidState(RIGHTARC);
+      }
+      else if (front){
+        changeAvoidState(BACKWARDS);
+      }
+      else if (leftSide || rightSide){
+        timeOut = 0;
+      }
+      if (timeOut >= timer){
+        changeAvoidState(IDLE);
+      }
+      break;
+    case BACKWARDS:
+      if (timeOut >= timer){
+        if(irReadingCm(2) > irReadingCm(3)){
+          changeAvoidState(LEFTARC);
+        }
+        else{
+          changeAvoidState(RIGHTARC);
+        }
+      }
+      break;
+    case LEFTARC:
+      if (leftSide){
+        changeAvoidState(BACKWARDS);
+      }
+      else if (timeOut >= timer){
+        changeAvoidState(FORWARDS);
+      }  
+      break;
+    case RIGHTARC:
+      if (rightSide){
+        changeAvoidState(BACKWARDS);
+      }
+      else if (timeOut >= timer){
+        changeAvoidState(FORWARDS);
+      }   
+      break;
+    default:
+      currentAvoidState = IDLE;
+      break;
+  }
+  
 
-    if (timeOut >= timer){
-      forwards = 0;
-      idle = 1;
-    }
+  switch(currentAvoidState){
+    case IDLE:
+      avoidMotorCommands[0] = motorUpper;
+      avoidMotorCommands[1] = motorUpper;
+      avoidMotorCommands[2] = motorLower;
+      avoidMotorCommands[3] = motorLower;  
+      break;
+    case FORWARDS:
+      avoidMotorCommands[0] = motorUpper;
+      avoidMotorCommands[1] = motorUpper;
+      avoidMotorCommands[2] = motorLower;
+      avoidMotorCommands[3] = motorLower;      	
+      break;
+    case BACKWARDS:
+      avoidMotorCommands[0] = motorLower;
+      avoidMotorCommands[1] = motorLower;
+      avoidMotorCommands[2] = motorUpper;
+      avoidMotorCommands[3] = motorUpper;
+      break;
+    case LEFTARC:
+      avoidMotorCommands[0] = motorLower;
+      avoidMotorCommands[1] = motorLower;
+      avoidMotorCommands[2] = motorLower;
+      avoidMotorCommands[3] = motorLower;
+      break;
+    case RIGHTARC:
+      avoidMotorCommands[0] = motorUpper;
+      avoidMotorCommands[1] = motorUpper;
+      avoidMotorCommands[2] = motorUpper;
+      avoidMotorCommands[3] = motorUpper;
+      break;
+    default:
+      break;
   }
-
-  if (backwards){
-    if (timeOut >= timer){
-      backwards = 0;
-      timeOut = 0;
-      rightArc = 1;
-    }
-  }
-
-  if (leftArc){
-    if (leftSide <= 5){
-      leftArc = 0;
-      timeOut = 0;
-      backwards = 1;
-    }
-    else if (timeOut >= timer){
-      leftArc = 0;
-      timeOut = 0;
-      forwards = 1;
-    }
-  }
-
-  if (rightArc){
-    if (rightSide <= 5){
-      rightArc = 0;
-      timeOut = 0;
-      backwards = 1;
-    }
-    else if (timeOut >= timer){
-      rightArc = 0;
-      timeOut = 0;
-      forwards = 1;
-    }
-  }
-
-  if (forwards){
-    avoidMotorCommands[0] = motorUpper;
-    avoidMotorCommands[1] = motorUpper;
-    avoidMotorCommands[2] = motorLower;
-    avoidMotorCommands[3] = motorLower;
-  }
-  else if (backwards){
-    avoidMotorCommands[0] = motorLower;
-    avoidMotorCommands[1] = motorLower;
-    avoidMotorCommands[2] = motorUpper;
-    avoidMotorCommands[3] = motorUpper;
-  }
-  else if (idle){
-    avoidMotorCommands[0] = motorUpper;
-    avoidMotorCommands[1] = motorUpper;
-    avoidMotorCommands[2] = motorLower;
-    avoidMotorCommands[3] = motorLower;
-  }
-  else if (leftArc){
-    avoidMotorCommands[0] = motorLower;
-    avoidMotorCommands[1] = motorLower;
-    avoidMotorCommands[2] = motorLower;
-    avoidMotorCommands[3] = motorLower;
-  }
-  else if (rightArc){
-    avoidMotorCommands[0] = motorUpper;
-    avoidMotorCommands[1] = motorUpper;
-    avoidMotorCommands[2] = motorUpper;
-    avoidMotorCommands[3] = motorUpper;
-  }
-
-
 }
-/*
-void avoid(){
-  avoidMotorCommands[0] = 1700;
-  avoidMotorCommands[1] = 1700;
-  avoidMotorCommands[2] = 1300;
-  avoidMotorCommands[3] = 1300;
+
+
+void changeAvoidState(AVOIDSTATE avoidStateIn){
+  timeOut = 0;
+
+  //create circular array to store prev 10 avoid states  
+  prevAvoidStates[prevAvoidIndex] = currentAvoidState;
+  prevAvoidIndex = (prevAvoidIndex + 1)%10;
+
+  currentAvoidState = avoidStateIn;
 }
-*/
+
 void suppressor(){
   int i;
   if(0){
@@ -924,92 +918,3 @@ void strafe_right ()
   right_rear_motor.writeMicroseconds(1500 - speed_val);
   right_font_motor.writeMicroseconds(1500 + speed_val);
 }
-
-
-
-// void avoid(float left, float right, float leftSide, float rightSide)
-// {
-//   if (idle)
-//   {
-//     if(right)
-//     {
-//       idle = 0;
-//       timeOut = 0;
-//       if (left)
-//       {
-//         backwards = 1;
-//       }
-//       else
-//       {
-//         leftArc = 1;
-//       }
-//     }
-//     else if (left)
-//     {
-//       idle = 0;
-//       timeOut = 0;
-//       rightArc = 1;
-//     }
-//   }
-
-//   if (forward)
-//   {
-//     if (right)
-//     {
-//       forward = 0;
-//       timeOut = 0;
-//       if (left)
-//       {
-//         backwards = 1;
-//       }
-//       else
-//       {
-//         leftArc = 1;
-//       }
-//     }
-//     else if (left)
-//     {
-//       forward = 0;
-//       timeOut = 0;
-//       rightArc = 1;
-//     }
-
-//     if (timeOut >= timer)
-//     {
-//       forward = 0;
-//       idle = 1;
-//     }
-//   }
-
-//   if (backward)
-//   {
-//     if (timeOut >= timer)
-//     {
-//       backwards = 0;
-//       timeOut = 0;
-//       rightArc = 1;
-//     }
-//   }
-
-//   if (leftArc)
-//   {
-//     if (timeOut >= timer)
-//     {
-//       leftArc = 0;
-//       timeOut = 0;
-//       forward = 1;
-//     }
-//   }
-
-//   if (rightArc)
-//   {
-//     if (timeOut >= timer)
-//     {
-//       rightArc = 0;
-//       timeOut = 0;
-//       forward = 1;
-//     }
-//   }
-
-// }
-
