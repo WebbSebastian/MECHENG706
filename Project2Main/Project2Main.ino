@@ -310,7 +310,6 @@ void alignTo(){
 
 }
 
-}
 void driveTo(){  // TODO currently this just moves forward immediately which could cause issues down the line.
   float u = 300;
   bool detected = 0; //checks if something detected
