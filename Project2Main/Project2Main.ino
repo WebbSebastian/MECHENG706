@@ -114,6 +114,7 @@ int seek_state = 0;
 int pos = 0;
 //------------------------------------ align variables ----------------------------------------//
 int lastFireDetected = 0;
+int alignErrorIntegral = 0;
 void setup(void)
 {
   turret_motor.attach(servoPin);
@@ -276,26 +277,31 @@ void seek(){
 }
 
 void alignTo(){
-  int alignError = 3*pt_adc_vals[0] + pt_adc_vals[1] - pt_adc_vals[2] - 3*pt_adc_vals[3];
+  Kp = 0.5;
+  Ki = 0.01;
+  
+  
+  int alignError = pt_adc_vals[0] + pt_adc_vals[1] - pt_adc_vals[2] - pt_adc_vals[3];
   int i;
   bool fireDetected = false;
+  float adc_mean = (pt_adc_vals[0] + pt_adc_vals[1] + pt_adc_vals[2] + pt_adc_vals[3])/4.0;
   for (i = 0; i < 4;i++){
-    if (pt_adc_vals[i] < 0.98*1023){
+    if (pt_adc_vals[i] < 0.95*adc_mean){
       fireDetected = true;
       lastFireDetected = millis();
     }
   }
-  alignError = alignError*5;
+  alignErrorIntegral += alignError;
   if(fireDetected || ((millis() - lastFireDetected) <= 200)){
     
-    seekMotorCommands[0] = 1500 + SpeedCap( alignError, 300);
-    seekMotorCommands[1] = 1500 + SpeedCap( alignError, 300);
-    seekMotorCommands[2] = 1500 + SpeedCap( alignError, 300);
-    seekMotorCommands[3] = 1500 + SpeedCap( alignError, 300);
-    if (alignError < 10){
+    seekMotorCommands[0] = 1500 + SpeedCap( (Kp*alignError + Ki*alignErrorIntegral), 300);
+    seekMotorCommands[1] = 1500 + SpeedCap( (Kp*alignError + Ki*alignErrorIntegral), 300);
+    seekMotorCommands[2] = 1500 + SpeedCap( (Kp*alignError + Ki*alignErrorIntegral), 300);
+    seekMotorCommands[3] = 1500 + SpeedCap( (Kp*alignError + Ki*alignErrorIntegral), 300);
+    if ((alignError < 4)&&(fireDetected){
       seek_state = DRIVE;
     }
-  } else if(!alignError) {
+  } else {
     seekMotorCommands[0] = 1600;
     seekMotorCommands[1] = 1600;
     seekMotorCommands[2] = 1600;
