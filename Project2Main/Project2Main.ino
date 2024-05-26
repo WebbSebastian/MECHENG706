@@ -277,8 +277,8 @@ void seek(){
 }
 
 void alignTo(){
-  Kp = 0.5;
-  Ki = 0.01;
+  float Kp = 0.5;
+  float Ki = 0.01;
   
   
   int alignError = pt_adc_vals[0] + pt_adc_vals[1] - pt_adc_vals[2] - pt_adc_vals[3];
@@ -298,7 +298,7 @@ void alignTo(){
     seekMotorCommands[1] = 1500 + SpeedCap( (Kp*alignError + Ki*alignErrorIntegral), 300);
     seekMotorCommands[2] = 1500 + SpeedCap( (Kp*alignError + Ki*alignErrorIntegral), 300);
     seekMotorCommands[3] = 1500 + SpeedCap( (Kp*alignError + Ki*alignErrorIntegral), 300);
-    if ((alignError < 4)&&(fireDetected){
+    if ((alignError < 4)&&(fireDetected)){
       seek_state = DRIVE;
     }
   } else {
@@ -307,6 +307,8 @@ void alignTo(){
     seekMotorCommands[2] = 1600;
     seekMotorCommands[3] = 1600;
   }
+
+}
 
 }
 void driveTo(){  // TODO currently this just moves forward immediately which could cause issues down the line.
