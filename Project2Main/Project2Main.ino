@@ -379,7 +379,45 @@ int SpeedCap(float speed,int maxSpeed){
 }
 
 void extinguish(){
- unsigned long start = millis();
+  int Kp = 1;
+  int alignError = pt_adc_vals[1] - pt_adc_vals[2];
+  int ptSum = pt_adc_vals[1] + pt_adc_vals[2];
+  if(!aligned){
+    aligned = alignError < 2;
+  }
+  if (!aligned){
+    seekMotorCommands[0] = 1500 + SpeedCap( (Kp*alignError ), 300);
+    seekMotorCommands[1] = 1500 + SpeedCap( (Kp*alignError ), 300);
+    seekMotorCommands[2] = 1500 + SpeedCap( (Kp*alignError ), 300);
+    seekMotorCommands[3] = 1500 + SpeedCap( (Kp*alignError ), 300);
+  }
+  else {
+    int distError = USvalues[1] - 3;
+    int KpDist = 5;
+    if(distError < 1){
+      if(ptSum < 1000 ){
+        digitalWrite(FAN_PIN,HIGH);
+
+        while(ptSum < 1000){
+          delay(10);
+          pt_adc_vals[1] = analogRead(pt_pin_array[1]);
+          pt_adc_vals[2] = analogRead(pt_pin_array[2]);
+          ptSum = pt_adc_vals[1] + pt_adc_vals[2];
+        }
+      } else {
+        digitalWrite(FAN_PIN,LOW);
+        firesExtinguished++;
+        aligned = false;
+        seek_state = ALIGN;
+      }
+      
+    } else {
+      seekMotorCommands[0] = 1500 + SpeedCap( (KpDist*distError ), 300);
+      seekMotorCommands[1] = 1500 + SpeedCap( (KpDist*distError ), 300);
+      seekMotorCommands[2] = 1500 - SpeedCap( (KpDist*distError ), 300);
+      seekMotorCommands[3] = 1500 - SpeedCap( (KpDist*distError ), 300);
+    }
+  }
 
 }
 void avoid()
