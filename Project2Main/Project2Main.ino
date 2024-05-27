@@ -115,6 +115,9 @@ int pos = 0;
 //------------------------------------ align variables ----------------------------------------//
 int lastFireDetected = 0;
 int alignErrorIntegral = 0;
+//------------------------------------ extinguish variables ----------------------------------------//
+bool aligned = 0;
+int firesExtinguished = 0;
 void setup(void)
 {
   turret_motor.attach(servoPin);
@@ -276,12 +279,12 @@ void seek(){
   //using pt array and IR array figure out motor commands
 }
 
-void alignTo(){
+void alignTo(){ 
   float Kp = 0.5;
   float Ki = 0.01;
   
   
-  int alignError = pt_adc_vals[0] + pt_adc_vals[1] - pt_adc_vals[2] - pt_adc_vals[3];
+  int alignError = 0.8*pt_adc_vals[0] + pt_adc_vals[1] - pt_adc_vals[2] - pt_adc_vals[3];
   int i;
   bool fireDetected = false;
   float adc_mean = (pt_adc_vals[0] + pt_adc_vals[1] + pt_adc_vals[2] + pt_adc_vals[3])/4.0;
@@ -291,6 +294,12 @@ void alignTo(){
       lastFireDetected = millis();
     }
   }
+  if(adc_mean <0.8*1023){
+    fireDetected = true;
+    lastFireDetected = millis();
+    alignError = pt_adc_vals[1] - pt_adc_vals[2];
+  }
+  Serial.println(alignError);
   alignErrorIntegral += alignError;
   if(fireDetected || ((millis() - lastFireDetected) <= 200)){
     
@@ -298,10 +307,12 @@ void alignTo(){
     seekMotorCommands[1] = 1500 + SpeedCap( (Kp*alignError + Ki*alignErrorIntegral), 300);
     seekMotorCommands[2] = 1500 + SpeedCap( (Kp*alignError + Ki*alignErrorIntegral), 300);
     seekMotorCommands[3] = 1500 + SpeedCap( (Kp*alignError + Ki*alignErrorIntegral), 300);
-    if ((alignError < 4)&&(fireDetected)){
-      seek_state = DRIVE;
+    if ((alignError < 2)&&(fireDetected)){
+      //seek_state = DRIVE;
+      alignErrorIntegral = 0;
     }
   } else {
+    alignErrorIntegral = 0;
     seekMotorCommands[0] = 1600;
     seekMotorCommands[1] = 1600;
     seekMotorCommands[2] = 1600;
