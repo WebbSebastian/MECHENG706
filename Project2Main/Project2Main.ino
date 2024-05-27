@@ -322,59 +322,50 @@ void alignTo(){
 }
 
 void driveTo(){  // TODO currently this just moves forward immediately which could cause issues down the line.
-  float u = 300;
   bool detected = 0; //checks if something detected
-  float Kp = 0.5;  
+  float Kp = 1;  
   float Ki = 0;
-
+  int threshold = 900; // check the threshold values
   float integralerror = 0;
   bool direction = 1;
   int maxSpeed = 300;
   
-  float currenterror = pt_adc_vals[1]- pt_adc_vals[0];
+  float currenterror = pt_adc_vals[2]- pt_adc_vals[1];
   //Serial.print(currenterror);
   //error = right -left sensor ;
   error = currenterror;
-  
-  //Serial.print("pt0   ");
-  //Serial.print(pt_adc_vals[0]);
-  //Serial.print("                         ");
-  //Serial.print("pt1   ");
-  //Serial.print(pt_adc_vals[1]);
-  //Serial.print("                         ");
+
+  // Serial.print("pt0   ");
+  // Serial.print(pt_adc_vals[0]);
+  // Serial.print("                         ");
+  // Serial.print("pt1   ");
+  // Serial.print(pt_adc_vals[1]);
+  // Serial.print("                         ");
   // Serial.print("pt2   ");
-  // Serial.print(pt_adc_vals[2);
+  // Serial.print(pt_adc_vals[2]);
   // Serial.print("                         ");
   // Serial.print("pt3   ");
   // Serial.println(pt_adc_vals[3]);
 
-
-
-  if (error > 0){
-    direction = 1;
-  }
-  else{
-    direction = 1;
-  }
-  int i;
-  for (i = 0; i < 4; i++){
-  if(ir_obj_detect[4]==1)
-    detected = 1;
-  }
-
-  if(detected == 1) {
-    avoid();
-  }
   Serial.println(error);
   error = SpeedCap(Kp * error + Ki * integralerror, maxSpeed);
   
-  // add state change to extinguishing
+  //add state change to extinguishing
+  if((pt_adc_vals[2]< 20)&&(pt_adc_vals[1] <20)){    //-------------------threshold values-------------
+    seek_state = EXTINGUISH;
+    Serial.print("                                        extinguish!");
+  }
 
-  seekMotorCommands[0] = 1500 - error + 200; // should a direction be added?
-  seekMotorCommands[1] = 1500 + error + 200;
-  seekMotorCommands[2] = 1500 + error - 200;
-  seekMotorCommands[3] = 1500 - error - 200;
-  
+  // ADD CODE TO CHANGE INTO ALIGN
+  if((pt_adc_vals[1]>threshold)&&(pt_adc_vals[2]>threshold)){  /// check theshold values
+    seek_state = ALIGN;
+    Serial.print("                                        align!");
+  }
+
+  seekMotorCommands[0] = 1500 - error + 100; 
+  seekMotorCommands[1] = 1500 - error + 100;
+  seekMotorCommands[2] = 1500 - error - 100;
+  seekMotorCommands[3] = 1500 - error - 100;
 }
 
 int SpeedCap(float speed,int maxSpeed){
