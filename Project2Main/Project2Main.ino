@@ -47,6 +47,13 @@ const int pt1 = A4;
 const int pt2 = A5;
 const int pt3 = A6;
 const int pt4 = A7;
+
+const int adc_amb_pt1 = 810;
+const int adc_amb_pt2 = 890;
+const int adc_amb_pt3 = 700;
+const int adc_amb_pt4 = 700;
+
+int pt_amb_adc[4] = {adc_amb_pt1,adc_amb_pt2,adc_amb_pt3,adc_amb_pt4};
 int pt_pin_array[4] = {pt1,pt2,pt3,pt4};
 //----------------------------------------------- Avoidance global variables ----------------------------------------------//
 
@@ -117,6 +124,9 @@ int pos = 0;
 //------------------------------------ align variables ----------------------------------------//
 int lastFireDetected = 0;
 int alignErrorIntegral = 0;
+//------------------------------------ extinguish variables ----------------------------------------//
+bool aligned = 0;
+int firesExtinguished = 0;
 void setup(void)
 {
   turret_motor.attach(servoPin);
@@ -280,94 +290,128 @@ void seek(){
   //using pt array and IR array figure out motor commands
 }
 
-void alignTo(){
-  float Kp = 0.5;
-  float Ki = 0.01;
+void alignTo(){ 
+ 
+  float Kp = 5;
+  float Ki = 1;
+  
+  float pt_change_percentage[4];
+
+
+  for (int i = 0; i < 4;i++){
+    pt_change_percentage[i] = ((pt_amb_adc[i]- pt_adc_vals[i])/(float)pt_amb_adc[i])*100;
+    if (pt_change_percentage[i] < 0) {
+      pt_change_percentage[i] = 0;
+    }
+  }
   
   
-  int alignError = pt_adc_vals[0] + pt_adc_vals[1] - pt_adc_vals[2] - pt_adc_vals[3];
-  int i;
+  float alignError =  pt_change_percentage[3] + pt_change_percentage[2] - pt_change_percentage[1] -pt_change_percentage[0];
   bool fireDetected = false;
+
+  // int inSum = (pt_adc_vals[1] + pt_adc_vals[2]);
+  // int outSum = (pt_adc_vals[0] + pt_adc_vals[3]);
+
   float adc_mean = (pt_adc_vals[0] + pt_adc_vals[1] + pt_adc_vals[2] + pt_adc_vals[3])/4.0;
-  for (i = 0; i < 4;i++){
+  for (int i = 0; i < 4;i++){
     if (pt_adc_vals[i] < 0.95*adc_mean){
       fireDetected = true;
       lastFireDetected = millis();
     }
   }
-  alignErrorIntegral += alignError;
+  Serial.print("alignError = ");
+  Serial.println(alignError);
+
+  Serial.print("pt1 = ");
+  Serial.println(pt_change_percentage[0]);
+
+  Serial.print("pt2 = ");
+  Serial.println(pt_change_percentage[1]);
+
+  Serial.print("pt3 = ");
+  Serial.println(pt_change_percentage[2]);
+
+  Serial.print("pt4 = ");
+  Serial.println(pt_change_percentage[3]);
+
+  // if(inSum < outSum ){
+  //   fireDetected = true;
+  //   lastFireDetected = millis();
+  //   alignError = pt_adc_vals[1] - pt_adc_vals[2];
+  // }
+  int satPoint = 100;
+  
+  if(Kp*alignError < satPoint){
+    alignErrorIntegral += alignError;
+  } else {
+    alignErrorIntegral = 0;
+  }
+  
   if(fireDetected || ((millis() - lastFireDetected) <= 200)){
     
-    seekMotorCommands[0] = 1500 + SpeedCap( (Kp*alignError + Ki*alignErrorIntegral), 300);
-    seekMotorCommands[1] = 1500 + SpeedCap( (Kp*alignError + Ki*alignErrorIntegral), 300);
-    seekMotorCommands[2] = 1500 + SpeedCap( (Kp*alignError + Ki*alignErrorIntegral), 300);
-    seekMotorCommands[3] = 1500 + SpeedCap( (Kp*alignError + Ki*alignErrorIntegral), 300);
-    if ((alignError < 4)&&(fireDetected)){
-      seek_state = DRIVE;
+    seekMotorCommands[0] = 1500 + SpeedCap( (Kp*alignError + Ki*alignErrorIntegral), satPoint);
+    seekMotorCommands[1] = 1500 + SpeedCap( (Kp*alignError + Ki*alignErrorIntegral), satPoint);
+    seekMotorCommands[2] = 1500 + SpeedCap( (Kp*alignError + Ki*alignErrorIntegral), satPoint);
+    seekMotorCommands[3] = 1500 + SpeedCap( (Kp*alignError + Ki*alignErrorIntegral), satPoint);
+    if ((alignError < 2)&&(fireDetected)){
+      //seek_state = DRIVE;
+      alignErrorIntegral = 0;
     }
   } else {
-    seekMotorCommands[0] = 1600;
-    seekMotorCommands[1] = 1600;
-    seekMotorCommands[2] = 1600;
-    seekMotorCommands[3] = 1600;
+    alignErrorIntegral = 0;
+    seekMotorCommands[0] = 1500;
+    seekMotorCommands[1] = 1500;
+    seekMotorCommands[2] = 1500;
+    seekMotorCommands[3] = 1500;
   }
 
 }
 
 void driveTo(){  // TODO currently this just moves forward immediately which could cause issues down the line.
-  float u = 300;
   bool detected = 0; //checks if something detected
-  float Kp = 0.5;  
+  float Kp = 1;  
   float Ki = 0;
-
+  int threshold = 900; // check the threshold values
   float integralerror = 0;
   bool direction = 1;
   int maxSpeed = 300;
   
-  float currenterror = pt_adc_vals[1]- pt_adc_vals[0];
+  float currenterror = pt_adc_vals[2]- pt_adc_vals[1];
   //Serial.print(currenterror);
   //error = right -left sensor ;
   error = currenterror;
-  
-  //Serial.print("pt0   ");
-  //Serial.print(pt_adc_vals[0]);
-  //Serial.print("                         ");
-  //Serial.print("pt1   ");
-  //Serial.print(pt_adc_vals[1]);
-  //Serial.print("                         ");
+
+  // Serial.print("pt0   ");
+  // Serial.print(pt_adc_vals[0]);
+  // Serial.print("                         ");
+  // Serial.print("pt1   ");
+  // Serial.print(pt_adc_vals[1]);
+  // Serial.print("                         ");
   // Serial.print("pt2   ");
-  // Serial.print(pt_adc_vals[2);
+  // Serial.print(pt_adc_vals[2]);
   // Serial.print("                         ");
   // Serial.print("pt3   ");
   // Serial.println(pt_adc_vals[3]);
 
-
-
-  if (error > 0){
-    direction = 1;
-  }
-  else{
-    direction = 1;
-  }
-  int i;
-  for (i = 0; i < 4; i++){
-  if(ir_obj_detect[4]==1)
-    detected = 1;
-  }
-
-  if(detected == 1) {
-    avoid();
-  }
   Serial.println(error);
   error = SpeedCap(Kp * error + Ki * integralerror, maxSpeed);
   
-  // add state change to extinguishing
+  //add state change to extinguishing
+  if((pt_adc_vals[2]< 20)&&(pt_adc_vals[1] <20)){    //-------------------threshold values-------------
+    seek_state = EXTINGUISH;
+    Serial.print("                                        extinguish!");
+  }
 
-  seekMotorCommands[0] = 1500 - error + 200; // should a direction be added?
-  seekMotorCommands[1] = 1500 + error + 200;
-  seekMotorCommands[2] = 1500 + error - 200;
-  seekMotorCommands[3] = 1500 - error - 200;
-  
+  // ADD CODE TO CHANGE INTO ALIGN
+  if((pt_adc_vals[1]>threshold)&&(pt_adc_vals[2]>threshold)){  /// check theshold values
+    seek_state = ALIGN;
+    Serial.print("                                        align!");
+  }
+
+  seekMotorCommands[0] = 1500 - error + 100; 
+  seekMotorCommands[1] = 1500 - error + 100;
+  seekMotorCommands[2] = 1500 - error - 100;
+  seekMotorCommands[3] = 1500 - error - 100;
 }
 
 int SpeedCap(float speed,int maxSpeed){
@@ -383,7 +427,45 @@ int SpeedCap(float speed,int maxSpeed){
 }
 
 void extinguish(){
- unsigned long start = millis();
+  int Kp = 1;
+  int alignError = pt_adc_vals[1] - pt_adc_vals[2];
+  int ptSum = pt_adc_vals[1] + pt_adc_vals[2];
+  if(!aligned){
+    aligned = alignError < 2;
+  }
+  if (!aligned){
+    seekMotorCommands[0] = 1500 + SpeedCap( (Kp*alignError ), 300);
+    seekMotorCommands[1] = 1500 + SpeedCap( (Kp*alignError ), 300);
+    seekMotorCommands[2] = 1500 + SpeedCap( (Kp*alignError ), 300);
+    seekMotorCommands[3] = 1500 + SpeedCap( (Kp*alignError ), 300);
+  }
+  else {
+    int distError = USvalues[1] - 3;
+    int KpDist = 5;
+    if(distError < 1){
+      if(ptSum < 1000 ){
+        digitalWrite(FAN_PIN,HIGH);
+
+        while(ptSum < 1000){
+          delay(10);
+          pt_adc_vals[1] = analogRead(pt_pin_array[1]);
+          pt_adc_vals[2] = analogRead(pt_pin_array[2]);
+          ptSum = pt_adc_vals[1] + pt_adc_vals[2];
+        }
+      } else {
+        digitalWrite(FAN_PIN,LOW);
+        firesExtinguished++;
+        aligned = false;
+        seek_state = ALIGN;
+      }
+      
+    } else {
+      seekMotorCommands[0] = 1500 + SpeedCap( (KpDist*distError ), 300);
+      seekMotorCommands[1] = 1500 + SpeedCap( (KpDist*distError ), 300);
+      seekMotorCommands[2] = 1500 - SpeedCap( (KpDist*distError ), 300);
+      seekMotorCommands[3] = 1500 - SpeedCap( (KpDist*distError ), 300);
+    }
+  }
 
 }
 void avoid()
