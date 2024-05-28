@@ -37,10 +37,10 @@ int speed_change;
 HardwareSerial *SerialCom;
 
 //----------------------------------------------- IR SENSOR PINS----------------------------------------------------------//
-const int irsensorFL = A10; //Front Left sensor SHORT RANGE
+const int irsensorFL = A9; //Front Left sensor SHORT RANGE
 const int irsensorFR = A11; //Front Right sensor SHORT RANGE
 const int irsensorRL = A8; //Rear Left sensor LONG RANGE
-const int irsensorRR = A9; //Rear Right sensor LONG RANGE
+const int irsensorRR = A10; //Rear Right sensor LONG RANGE
 int ir_pin_array[4] = {irsensorFL,irsensorFR,irsensorRL,irsensorRR};
 //---------------------------------------------- PT PINS and Variables-----------------------------------------------------//
 const int pt1 = A4;
@@ -60,6 +60,8 @@ typedef enum{
 
 AVOIDSTATE currentAvoidState = IDLE;
 AVOIDSTATE prevAvoidStates[10];
+
+char avoidStateName[5][9] = {"IDLE", "FORWARDS", "BACKWARDS", "LEFTARC", "RIGHTARC"};
 
 int prevAvoidIndex = 0;
 
@@ -152,6 +154,8 @@ void loop(void) //main loop
       break;
   };
 
+  
+  
 
   sensorGather();
   USReading();
@@ -388,22 +392,24 @@ void avoid()
     Serial.print("avoidState: "); Serial.print(currentAvoidState);
     Serial.print(", timeOut: "); Serial.print(timeOut); 
     Serial.print(", left: "); Serial.print(left); 
+    Serial.print(", front: "); Serial.print(front);
     Serial.print(", right: "); Serial.print(right); 
-    Serial.print(", front: "); Serial.print(front); 
     Serial.print(", leftSide: "); Serial.print(leftSide); 
-    Serial.print(", rightSide: "); Serial.println(rightSide);
+    Serial.print(", rightSide: "); Serial.print(rightSide);
+    //Serial.print(", US Values: "); Serial.print(USvalues[0]); Serial.print(" "); Serial.print(USvalues[1]); Serial.print(" ");Serial.println(USvalues[2]);
+    Serial.print(", IR Values: "); Serial.print(irReadingCm(0)); Serial.print(" "); Serial.print(irReadingCm(1)); Serial.print(" "); Serial.print(irReadingCm(2)); Serial.print(" "); Serial.println(irReadingCm(3));
   }
 
   timeOut += millis() - timeOutTotal;
   timeOutTotal = millis();
 
-  if (USvalues[0] <= 24){
+  if (USvalues[0] <= 19){
     left = 1;
   }
   else {
     left = 0;
   }
-  if (USvalues[2] <= 24){
+  if (USvalues[2] <= 19){
     right = 1;
   }
   else{
@@ -461,7 +467,7 @@ void avoid()
       break;
     case BACKWARDS:
       if (timeOut >= timer){
-        if(irReadingCm(2) > irReadingCm(3)){
+        if(irReadingCm(0) > irReadingCm(1)){
           changeAvoidState(LEFTARC);
         }
         else{
