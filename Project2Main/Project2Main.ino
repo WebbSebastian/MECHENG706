@@ -62,11 +62,15 @@ typedef enum{
     FORWARDS,
     BACKWARDS,
     LEFTARC,
-    RIGHTARC
+    RIGHTARC,
+    LEFTSLIDE,
+    RIGHTSLIDE
 } AVOIDSTATE;
 
-AVOIDSTATE currentAvoidState = IDLE;
-AVOIDSTATE prevAvoidStates[10];
+#define NUMSTOREDSTATES 5
+
+AVOIDSTATE currentAvoidState = FORWARDS;
+AVOIDSTATE prevAvoidStates[NUMSTOREDSTATES];
 
 char avoidStateName[5][9] = {"IDLE", "FORWARDS", "BACKWARDS", "LEFTARC", "RIGHTARC"};
 
@@ -81,8 +85,8 @@ int right = 0;
 int front = 0;
 int motorUpper = 1600;
 int motorLower = 1400;
-float leftSide = 0;
-float rightSide = 0;
+float leftSide[2] = {0, 0}; //front, back
+float rightSide[2] = {0, 0}; //front, back
 bool debugAvoid = 0;
 
 
@@ -476,10 +480,10 @@ void avoid()
     Serial.print(", left: "); Serial.print(left); 
     Serial.print(", front: "); Serial.print(front);
     Serial.print(", right: "); Serial.print(right); 
-    Serial.print(", leftSide: "); Serial.print(leftSide); 
-    Serial.print(", rightSide: "); Serial.print(rightSide);
+    Serial.print(", leftSide: "); Serial.print(leftSide[0]); Serial.print(" "); Serial.print(leftSide[1]);
+    Serial.print(", rightSide: "); Serial.print(rightSide[0]); Serial.print(" "); Serial.println(rightSide[1]);
     //Serial.print(", US Values: "); Serial.print(USvalues[0]); Serial.print(" "); Serial.print(USvalues[1]); Serial.print(" ");Serial.println(USvalues[2]);
-    Serial.print(", IR Values: "); Serial.print(irReadingCm(0)); Serial.print(" "); Serial.print(irReadingCm(1)); Serial.print(" "); Serial.print(irReadingCm(2)); Serial.print(" "); Serial.println(irReadingCm(3));
+    //Serial.print(", IR Values: "); Serial.print(irReadingCm(0)); Serial.print(" "); Serial.print(irReadingCm(1)); Serial.print(" "); Serial.print(irReadingCm(2)); Serial.print(" "); Serial.println(irReadingCm(3));
   }
 
   timeOut += millis() - timeOutTotal;
@@ -504,51 +508,78 @@ void avoid()
     front = 0;
   }
   
-  leftSide = ir_obj_detect[0];
-  rightSide = ir_obj_detect[1];
-
+  leftSide[0] = ir_obj_detect[0]; //FL IR
+  rightSide[0] = ir_obj_detect[1]; //FR IR
+  leftSide[1] = ir_obj_detect[2]; //RL IR
+  rightSide[1] = ir_obj_detect[3]; // RR IR
+  
 
   switch(currentAvoidState){
     case IDLE:
       if(front){
+        //Obstacle in front => move backwards
         changeAvoidState(BACKWARDS);
-      }
+      } 
       else if(right){
         if (left){
+          //Obstacles in front to both sides => move backwards
           changeAvoidState(BACKWARDS);
         }
         else{
+          //Obstacle in front to right => rotate left
           changeAvoidState(LEFTARC);
         }
       }
       else if (left){
+        //Obstacle in front to left => rotate right
         changeAvoidState(RIGHTARC);
       }
       break;
     case FORWARDS:
-      if (right){
+      if(front){
+        //Obstacle in front => move backwards
+        changeAvoidState(BACKWARDS);
+      } 
+      else if(right){
         if (left){
+          //Obstacles in front to both sides => move backwards
           changeAvoidState(BACKWARDS);
         }
         else{
+          //Obstacle in front to right => rotate left
           changeAvoidState(LEFTARC);
         }
       }
       else if (left){
+        //Obstacle in front to left => rotate right
         changeAvoidState(RIGHTARC);
       }
-      else if (front){
-        changeAvoidState(BACKWARDS);
+      //Move away from wall (not sure if necessary but encountered issues during testing)
+      else if (leftSide[0] && leftSide[1]){
+        changeAvoidState(RIGHTSLIDE);
       }
-      else if (leftSide || rightSide){
+      else if (rightSide[0] && rightSide[1]){
+        changeAvoidState(LEFTSLIDE);        
+      }
+      else if (leftSide[0] || rightSide[0]){
+        //Obstacles to either side => keep moving forwards
         timeOut = 0;
       }
       if (timeOut >= timer){
-        changeAvoidState(IDLE);
+        //Rotate back to path after rotating to avoid
+        if (prevAvoidStates[prevAvoidIndex - 1 + NUMSTOREDSTATES*!prevAvoidIndex] == RIGHTARC && prevAvoidStates[prevAvoidIndex - 3 + NUMSTOREDSTATES*!(prevAvoidIndex && prevAvoidIndex - 1 && prevAvoidIndex - 2)] != LEFTARC){
+          changeAvoidState(LEFTARC);
+        } else if (prevAvoidStates[prevAvoidIndex - 1 + NUMSTOREDSTATES*!prevAvoidIndex] == LEFTARC && prevAvoidStates[prevAvoidIndex - 3 + NUMSTOREDSTATES*!(prevAvoidIndex && prevAvoidIndex - 1 && prevAvoidIndex - 2)] != RIGHTARC){
+          changeAvoidState(RIGHTARC);
+        } else {
+          //Movement finished => idle
+          changeAvoidState(IDLE);
+        }
       }
       break;
     case BACKWARDS:
       if (timeOut >= timer){
+        //movement finished => rotate away from closest wall
         if(irReadingCm(0) > irReadingCm(1)){
           changeAvoidState(LEFTARC);
         }
@@ -558,18 +589,42 @@ void avoid()
       }
       break;
     case LEFTARC:
-      if (leftSide){
-        changeAvoidState(BACKWARDS);
+      //Obstacle in collision path of rotation => move forwards
+      if (leftSide[0] || rightSide[1]){
+        changeAvoidState(FORWARDS);
       }
       else if (timeOut >= timer){
+        //movement finished => move forwards
         changeAvoidState(FORWARDS);
       }  
       break;
     case RIGHTARC:
-      if (rightSide){
-        changeAvoidState(BACKWARDS);
+      //obstacle in collision path of rotation => move forwards
+      if (rightSide[0] || leftSide[1]){
+        changeAvoidState(FORWARDS);
       }
       else if (timeOut >= timer){
+        //movement finished => move forwards
+        changeAvoidState(FORWARDS);
+      }   
+      break;
+    case LEFTSLIDE:
+      //Obstacle in collision path of translation => move forwards
+      if (leftSide[0] || leftSide[1]){
+        changeAvoidState(FORWARDS);
+      }
+      else if (timeOut >= timer){
+        //movement finished => move forwards
+        changeAvoidState(FORWARDS);
+      }  
+      break;
+    case RIGHTSLIDE:
+      //obstacle in collision path of translation => move forwards
+      if (rightSide[0] || rightSide[1]){
+        changeAvoidState(FORWARDS);
+      }
+      else if (timeOut >= timer){
+        //movement finished => move forwards
         changeAvoidState(FORWARDS);
       }   
       break;
@@ -578,13 +633,13 @@ void avoid()
       break;
   }
   
-
+  //Apply relevant motor commands
   switch(currentAvoidState){
     case IDLE:
-      avoidMotorCommands[0] = motorUpper;
-      avoidMotorCommands[1] = motorUpper;
-      avoidMotorCommands[2] = motorLower;
-      avoidMotorCommands[3] = motorLower;  
+      avoidMotorCommands[0] = 1500;
+      avoidMotorCommands[1] = 1500;
+      avoidMotorCommands[2] = 1500;
+      avoidMotorCommands[3] = 1500;  
       break;
     case FORWARDS:
       avoidMotorCommands[0] = motorUpper;
@@ -610,18 +665,31 @@ void avoid()
       avoidMotorCommands[2] = motorUpper;
       avoidMotorCommands[3] = motorUpper;
       break;
+    case LEFTSLIDE:
+      avoidMotorCommands[0] = motorLower;
+      avoidMotorCommands[1] = motorUpper;
+      avoidMotorCommands[2] = motorUpper;
+      avoidMotorCommands[3] = motorLower;
+      break;
+    case RIGHTSLIDE:
+      avoidMotorCommands[0] = motorUpper;
+      avoidMotorCommands[1] = motorLower;
+      avoidMotorCommands[2] = motorLower;
+      avoidMotorCommands[3] = motorUpper;
+      break;
     default:
       break;
   }
+
 }
 
 
 void changeAvoidState(AVOIDSTATE avoidStateIn){
   timeOut = 0;
 
-  //create circular array to store prev 10 avoid states  
+  //create circular array to store prev avoid states  
   prevAvoidStates[prevAvoidIndex] = currentAvoidState;
-  prevAvoidIndex = (prevAvoidIndex + 1)%10;
+  prevAvoidIndex = (prevAvoidIndex + 1)%NUMSTOREDSTATES;
 
   currentAvoidState = avoidStateIn;
 }
