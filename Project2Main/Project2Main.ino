@@ -127,7 +127,8 @@ int seek_state = 0;
 int pos = 0;
 //------------------------------------ align variables ----------------------------------------//
 int lastFireDetected = 0;
-int alignErrorIntegral = 0;
+float alignErrorIntegral = 0;
+int consecutiveLowErrors = 0;
 //------------------------------------ extinguish variables ----------------------------------------//
 bool aligned = 0;
 int firesExtinguished = 0;
@@ -300,29 +301,33 @@ void alignTo(){
   float Ki = 1;
   
   float pt_change_percentage[4];
-
+  bool fireDetected = false;
 
   for (int i = 0; i < 4;i++){
     pt_change_percentage[i] = ((pt_amb_adc[i]- pt_adc_vals[i])/(float)pt_amb_adc[i])*100;
     if (pt_change_percentage[i] < 0) {
       pt_change_percentage[i] = 0;
     }
-  }
-  
-  
-  float alignError =  pt_change_percentage[3] + pt_change_percentage[2] - pt_change_percentage[1] -pt_change_percentage[0];
-  bool fireDetected = false;
-
-  // int inSum = (pt_adc_vals[1] + pt_adc_vals[2]);
-  // int outSum = (pt_adc_vals[0] + pt_adc_vals[3]);
-
-  float adc_mean = (pt_adc_vals[0] + pt_adc_vals[1] + pt_adc_vals[2] + pt_adc_vals[3])/4.0;
-  for (int i = 0; i < 4;i++){
-    if (pt_adc_vals[i] < 0.95*adc_mean){
+    if(pt_change_percentage[i] > 10){
       fireDetected = true;
       lastFireDetected = millis();
     }
   }
+  
+  
+  float alignError =  pt_change_percentage[3] + pt_change_percentage[2] - pt_change_percentage[1] -pt_change_percentage[0];
+
+
+  // int inSum = (pt_adc_vals[1] + pt_adc_vals[2]);
+  // int outSum = (pt_adc_vals[0] + pt_adc_vals[3]);
+
+  //float adc_mean = (pt_adc_vals[0] + pt_adc_vals[1] + pt_adc_vals[2] + pt_adc_vals[3])/4.0;
+  // for (int i = 0; i < 4;i++){
+  //   if (pt_adc_vals[i] < 0.95*adc_mean){
+  //     fireDetected = true;
+  //     lastFireDetected = millis();
+  //   }
+  // }
   Serial.print("alignError = ");
   Serial.println(alignError);
 
@@ -351,24 +356,34 @@ void alignTo(){
     alignErrorIntegral = 0;
   }
   
-  if(fireDetected || ((millis() - lastFireDetected) <= 200)){
+  if(fireDetected || ((millis() - lastFireDetected) <= 150)){
     
     seekMotorCommands[0] = 1500 + SpeedCap( (Kp*alignError + Ki*alignErrorIntegral), satPoint);
     seekMotorCommands[1] = 1500 + SpeedCap( (Kp*alignError + Ki*alignErrorIntegral), satPoint);
     seekMotorCommands[2] = 1500 + SpeedCap( (Kp*alignError + Ki*alignErrorIntegral), satPoint);
     seekMotorCommands[3] = 1500 + SpeedCap( (Kp*alignError + Ki*alignErrorIntegral), satPoint);
     if ((alignError < 2)&&(fireDetected)){
-      //seek_state = DRIVE;
+      consecutiveLowErrors++;
       alignErrorIntegral = 0;
+      if (consecutiveLowErrors > 5){
+        seek_state = DRIVE;
+        consecutiveLowErrors = 0;
+      }
+
+    } else {
+      consecutiveLowErrors = 0;
     }
   } else {
     alignErrorIntegral = 0;
-    seekMotorCommands[0] = 1500;
-    seekMotorCommands[1] = 1500;
-    seekMotorCommands[2] = 1500;
-    seekMotorCommands[3] = 1500;
+    consecutiveLowErrors = 0;
+    seekMotorCommands[0] = 1580;
+    seekMotorCommands[1] = 1580;
+    seekMotorCommands[2] = 1580;
+    seekMotorCommands[3] = 1580;
+    if(millis() - lastFireDetected > 3000){
+      //change state to roomba code
+    }
   }
-
 }
 
 void driveTo(){  // TODO currently this just moves forward immediately which could cause issues down the line.
