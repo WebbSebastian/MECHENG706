@@ -362,7 +362,7 @@ void alignTo(){
     seekMotorCommands[1] = 1500 + SpeedCap( (Kp*alignError + Ki*alignErrorIntegral), satPoint);
     seekMotorCommands[2] = 1500 + SpeedCap( (Kp*alignError + Ki*alignErrorIntegral), satPoint);
     seekMotorCommands[3] = 1500 + SpeedCap( (Kp*alignError + Ki*alignErrorIntegral), satPoint);
-    if ((alignError < 2)&&(fireDetected)){
+    if ((abs(alignError) < 2)&&(fireDetected)){
       consecutiveLowErrors++;
       alignErrorIntegral = 0;
       if (consecutiveLowErrors > 5){
