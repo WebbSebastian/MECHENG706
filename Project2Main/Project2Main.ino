@@ -387,13 +387,16 @@ void alignTo(){
 }
 
 void driveTo(){  // TODO currently this just moves forward immediately which could cause issues down the line.
-  bool detected = 0; //checks if something detected
-  float Kp = 1;  
+bool detected = 0; //checks if something detected
+  float Kp = 0.4;  
   float Ki = 0;
-  int threshold = 900; // check the threshold values
+  int threshold = 500; // check the threshold values
   float integralerror = 0;
   bool direction = 1;
-  int maxSpeed = 300;
+  int maxSpeed = 200;
+  int proximity = 1;
+  bool close = 0;
+  bool stop = 1;
   
   float currenterror = pt_adc_vals[2]- pt_adc_vals[1];
   //Serial.print(currenterror);
@@ -403,34 +406,52 @@ void driveTo(){  // TODO currently this just moves forward immediately which cou
   // Serial.print("pt0   ");
   // Serial.print(pt_adc_vals[0]);
   // Serial.print("                         ");
-  // Serial.print("pt1   ");
-  // Serial.print(pt_adc_vals[1]);
-  // Serial.print("                         ");
-  // Serial.print("pt2   ");
-  // Serial.print(pt_adc_vals[2]);
-  // Serial.print("                         ");
+  Serial.print("pt1   ");
+  Serial.print(pt_adc_vals[1]);
+  Serial.print("                         ");
+  Serial.print("pt2   ");
+  Serial.print(pt_adc_vals[2]);
+  Serial.println("                         ");
   // Serial.print("pt3   ");
   // Serial.println(pt_adc_vals[3]);
 
-  Serial.println(error);
+// Serial.println(error);
   error = SpeedCap(Kp * error + Ki * integralerror, maxSpeed);
   
   //add state change to extinguishing
-  if((pt_adc_vals[2]< 20)&&(pt_adc_vals[1] <20)){    //-------------------threshold values-------------
+  if((pt_adc_vals[2]< 20)&&(pt_adc_vals[1] <100)){    //-------------------threshold values-------------
     seek_state = EXTINGUISH;
-    Serial.print("                                        extinguish!");
+    //Serial.print("                                        extinguish!");
+    stop = 0;
+    digitalWrite(FAN_PIN, HIGH);
   }
 
   // ADD CODE TO CHANGE INTO ALIGN
   if((pt_adc_vals[1]>threshold)&&(pt_adc_vals[2]>threshold)){  /// check theshold values
     seek_state = ALIGN;
-    Serial.print("                                        align!");
+    //Serial.print("                                        align!");
   }
 
-  seekMotorCommands[0] = 1500 - error + 100; 
-  seekMotorCommands[1] = 1500 - error + 100;
-  seekMotorCommands[2] = 1500 - error - 100;
-  seekMotorCommands[3] = 1500 - error - 100;
+  if((pt_adc_vals[2]<70)&&(pt_adc_vals[1]<200)){
+    proximity = 0.7; // changes the forwards speed of the robot when it is close to the fire...
+    //close = 1; 
+  } 
+
+  if((pt_adc_vals[2]<10)&&(pt_adc_vals[1]<110)){
+    proximity = 0; // changes the forwards speed of the robot when it is close to the fire...
+   // close = 0; 
+  } 
+
+  if(USvalues[1]<= 6){
+    Serial.println("stopped with US Sensor.                       ");
+    stop = 0;
+  }
+ // Serial.println(USvalues[1]);
+
+  seekMotorCommands[0] = stop *(1500 - error + (150*proximity)) ; //+ (-close * 30))*stop; 
+  seekMotorCommands[1] = stop *(1500 - error + (150*proximity) ); //+ (-close * 30))*stop;
+  seekMotorCommands[2] = stop *(1500 - error - (150*proximity)); //+ (-close * 30))*stop;
+  seekMotorCommands[3] = stop *(1500 - error - (150*proximity)); //+ (-close * 30))*stop;
 }
 
 int SpeedCap(float speed,int maxSpeed){
