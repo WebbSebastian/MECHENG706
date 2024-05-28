@@ -47,6 +47,13 @@ const int pt1 = A4;
 const int pt2 = A5;
 const int pt3 = A6;
 const int pt4 = A7;
+
+const int adc_amb_pt1 = 810;
+const int adc_amb_pt2 = 890;
+const int adc_amb_pt3 = 700;
+const int adc_amb_pt4 = 700;
+
+int pt_amb_adc[4] = {adc_amb_pt1,adc_amb_pt2,adc_amb_pt3,adc_amb_pt4};
 int pt_pin_array[4] = {pt1,pt2,pt3,pt4};
 //----------------------------------------------- Avoidance global variables ----------------------------------------------//
 
@@ -280,43 +287,78 @@ void seek(){
 }
 
 void alignTo(){ 
-  float Kp = 0.5;
-  float Ki = 0.01;
+ 
+  float Kp = 5;
+  float Ki = 1;
+  
+  float pt_change_percentage[4];
+
+
+  for (int i = 0; i < 4;i++){
+    pt_change_percentage[i] = ((pt_amb_adc[i]- pt_adc_vals[i])/(float)pt_amb_adc[i])*100;
+    if (pt_change_percentage[i] < 0) {
+      pt_change_percentage[i] = 0;
+    }
+  }
   
   
-  int alignError = 0.8*pt_adc_vals[0] + pt_adc_vals[1] - pt_adc_vals[2] - pt_adc_vals[3];
-  int i;
+  float alignError =  pt_change_percentage[3] + pt_change_percentage[2] - pt_change_percentage[1] -pt_change_percentage[0];
   bool fireDetected = false;
+
+  // int inSum = (pt_adc_vals[1] + pt_adc_vals[2]);
+  // int outSum = (pt_adc_vals[0] + pt_adc_vals[3]);
+
   float adc_mean = (pt_adc_vals[0] + pt_adc_vals[1] + pt_adc_vals[2] + pt_adc_vals[3])/4.0;
-  for (i = 0; i < 4;i++){
+  for (int i = 0; i < 4;i++){
     if (pt_adc_vals[i] < 0.95*adc_mean){
       fireDetected = true;
       lastFireDetected = millis();
     }
   }
-  if(adc_mean <0.8*1023){
-    fireDetected = true;
-    lastFireDetected = millis();
-    alignError = pt_adc_vals[1] - pt_adc_vals[2];
-  }
+  Serial.print("alignError = ");
   Serial.println(alignError);
-  alignErrorIntegral += alignError;
+
+  Serial.print("pt1 = ");
+  Serial.println(pt_change_percentage[0]);
+
+  Serial.print("pt2 = ");
+  Serial.println(pt_change_percentage[1]);
+
+  Serial.print("pt3 = ");
+  Serial.println(pt_change_percentage[2]);
+
+  Serial.print("pt4 = ");
+  Serial.println(pt_change_percentage[3]);
+
+  // if(inSum < outSum ){
+  //   fireDetected = true;
+  //   lastFireDetected = millis();
+  //   alignError = pt_adc_vals[1] - pt_adc_vals[2];
+  // }
+  int satPoint = 100;
+  
+  if(Kp*alignError < satPoint){
+    alignErrorIntegral += alignError;
+  } else {
+    alignErrorIntegral = 0;
+  }
+  
   if(fireDetected || ((millis() - lastFireDetected) <= 200)){
     
-    seekMotorCommands[0] = 1500 + SpeedCap( (Kp*alignError + Ki*alignErrorIntegral), 300);
-    seekMotorCommands[1] = 1500 + SpeedCap( (Kp*alignError + Ki*alignErrorIntegral), 300);
-    seekMotorCommands[2] = 1500 + SpeedCap( (Kp*alignError + Ki*alignErrorIntegral), 300);
-    seekMotorCommands[3] = 1500 + SpeedCap( (Kp*alignError + Ki*alignErrorIntegral), 300);
+    seekMotorCommands[0] = 1500 + SpeedCap( (Kp*alignError + Ki*alignErrorIntegral), satPoint);
+    seekMotorCommands[1] = 1500 + SpeedCap( (Kp*alignError + Ki*alignErrorIntegral), satPoint);
+    seekMotorCommands[2] = 1500 + SpeedCap( (Kp*alignError + Ki*alignErrorIntegral), satPoint);
+    seekMotorCommands[3] = 1500 + SpeedCap( (Kp*alignError + Ki*alignErrorIntegral), satPoint);
     if ((alignError < 2)&&(fireDetected)){
       //seek_state = DRIVE;
       alignErrorIntegral = 0;
     }
   } else {
     alignErrorIntegral = 0;
-    seekMotorCommands[0] = 1600;
-    seekMotorCommands[1] = 1600;
-    seekMotorCommands[2] = 1600;
-    seekMotorCommands[3] = 1600;
+    seekMotorCommands[0] = 1500;
+    seekMotorCommands[1] = 1500;
+    seekMotorCommands[2] = 1500;
+    seekMotorCommands[3] = 1500;
   }
 
 }
