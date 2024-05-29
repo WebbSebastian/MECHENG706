@@ -255,6 +255,8 @@ void USReading() {
     }
     else if (millis() - UStimerPrev >= 10){//Take a reading ever 10ms 
       USvalues[USstate] = HC_SR04_range();//get reading for current sensor position 
+
+      UStimerPrev = millis(); // Reset the timer for the next interval
     }
   }
   else if (millis() - UStimerPrev >= USTime) {//has the required time interval elapsed
