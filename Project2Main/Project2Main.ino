@@ -99,6 +99,8 @@ int servoPin = 42;
 #define USL 0 //Ultrasonic left
 #define USF 1 //Ultrasonic Front
 #define USR 2 //Ultrasonic right
+bool ServoLocked = false;
+bool ServoLock = false;
 long UStimerPrev = 0;
 int USTime = 175; //ms min before US reading
 int USstate = USF;//defualt US State 
@@ -247,10 +249,23 @@ float irReadingCm(int pinIndex){
 
 
 void USReading() {
-  if (millis() - UStimerPrev >= USTime) {//has the required time interval elapsed
+  if(ServoLocked == true){
+    if(ServoLock == false){
+      ServoLocked = false;
+    }
+    else if (millis() - UStimerPrev >= 10){//Take a reading ever 10ms 
+      USvalues[USstate] = HC_SR04_range();//get reading for current sensor position 
+    }
+  }
+  else if (millis() - UStimerPrev >= USTime) {//has the required time interval elapsed
+    
     USvalues[USstate] = HC_SR04_range();//get reading for current sensor position 
+    
     if (USstate == USF) {//If the state is front get the next state
-      if (USstatePrev == USL) {
+      if(ServoLock == true){
+        ServoLocked = true;
+      }
+      else if (USstatePrev == USL) {
         USstate = USR;
       } else /*if (USstatePrev == USR)*/{
         USstate = USL;
