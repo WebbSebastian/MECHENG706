@@ -49,9 +49,9 @@ const int pt3 = A6;
 const int pt4 = A7;
 
 const int adc_amb_pt1 = 720;
-const int adc_amb_pt2 = 890;
-const int adc_amb_pt3 = 700;
-const int adc_amb_pt4 = 700;
+const int adc_amb_pt2 = 880;
+const int adc_amb_pt3 = 940;
+const int adc_amb_pt4 = 950;
 
 int pt_amb_adc[4] = {adc_amb_pt1,adc_amb_pt2,adc_amb_pt3,adc_amb_pt4};
 int pt_pin_array[4] = {pt1,pt2,pt3,pt4};
@@ -352,16 +352,16 @@ void alignTo(){
   Serial.println(alignError);
 
   Serial.print("pt1 = ");
-  Serial.println(pt_change_percentage[0]);
+  Serial.println(pt_adc_vals[0]);
 
   Serial.print("pt2 = ");
-  Serial.println(pt_change_percentage[1]);
+  Serial.println(pt_adc_vals[1]);
 
   Serial.print("pt3 = ");
-  Serial.println(pt_change_percentage[2]);
+  Serial.println(pt_adc_vals[2]);
 
   Serial.print("pt4 = ");
-  Serial.println(pt_change_percentage[3]);
+  Serial.println(pt_adc_vals[3]);
 
   // if(inSum < outSum ){
   //   fireDetected = true;
@@ -402,7 +402,7 @@ void alignTo(){
   } else {
     alignErrorIntegral = 0;
     consecutiveLowErrors = 0;
-    if(((millis() - lastFireDetected) > 8000)&&((millis() - enterAlign) > 8000)){
+    if(((millis() - lastFireDetected) > 8000)&&((millis() - enterAlign) > 8000)&&(seek_state == ALIGN)){
       //change state to roomba code
       seekMotorCommands[0] = 1500 + satPoint;
       seekMotorCommands[1] = 1500 + satPoint;
@@ -524,6 +524,7 @@ void extinguish(){
       // seekMotorCommands[1] = 1500;
       // seekMotorCommands[2] = 1500;
       // seekMotorCommands[3] = 1500;
+      enterAlign = millis();
       alignTo();
 
       if(ptSum < 1000 ){
@@ -535,7 +536,6 @@ void extinguish(){
         firesExtinguished++;
         aligned = false;
         isClose = false;
-        enterAlign = millis();
         seek_state = ALIGN;
       }
       
