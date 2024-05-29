@@ -252,6 +252,7 @@ void USReading() {
   if(ServoLocked == true){
     if(ServoLock == false){
       ServoLocked = false;
+      UStimerPrev = millis() - USTime;
     }
     else if (millis() - UStimerPrev >= 10){//Take a reading ever 10ms 
       USvalues[USstate] = HC_SR04_range();//get reading for current sensor position 
