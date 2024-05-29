@@ -133,7 +133,9 @@ float alignErrorIntegral = 0;
 int consecutiveLowErrors = 0;
 //------------------------------------ extinguish variables ----------------------------------------//
 bool aligned = 0;
+bool isClose = 0;
 int firesExtinguished = 0;
+int distErrorIntegral = 0;
 void setup(void)
 {
   turret_motor.attach(servoPin);
@@ -314,38 +316,38 @@ void seek(){
 }
 
 void alignTo(){ 
- 
-  float Kp = 5;
-  float Ki = 1;
   
+  float Kp = 1;
+  float Ki = 0.05;
+  
+  float alignError = 0;
+
+  float sum;
+
   float pt_change_percentage[4];
   bool fireDetected = false;
+  bool fireCentred = false;
 
   for (int i = 0; i < 4;i++){
     pt_change_percentage[i] = ((pt_amb_adc[i]- pt_adc_vals[i])/(float)pt_amb_adc[i])*100;
     if (pt_change_percentage[i] < 0) {
       pt_change_percentage[i] = 0;
     }
-    if(pt_change_percentage[i] > 10){
+    if(pt_change_percentage[i] > 5){
       fireDetected = true;
       lastFireDetected = millis();
     }
   }
   
-  
-  float alignError =  pt_change_percentage[3] + pt_change_percentage[2] - pt_change_percentage[1] -pt_change_percentage[0];
+  if((pt_change_percentage[2] + pt_change_percentage[1]) > (pt_change_percentage[0] + pt_change_percentage[3])){
+    alignError = pt_change_percentage[2] - pt_change_percentage[1];
+    fireCentred = true;
+    sum = pt_change_percentage[2] + pt_change_percentage[1];
+  } else {
+    alignError =  pt_change_percentage[3] + pt_change_percentage[2] - pt_change_percentage[1] -pt_change_percentage[0];
+    sum = pt_change_percentage[3] + pt_change_percentage[2] + pt_change_percentage[1] + pt_change_percentage[0];
+  }
 
-
-  // int inSum = (pt_adc_vals[1] + pt_adc_vals[2]);
-  // int outSum = (pt_adc_vals[0] + pt_adc_vals[3]);
-
-  //float adc_mean = (pt_adc_vals[0] + pt_adc_vals[1] + pt_adc_vals[2] + pt_adc_vals[3])/4.0;
-  // for (int i = 0; i < 4;i++){
-  //   if (pt_adc_vals[i] < 0.95*adc_mean){
-  //     fireDetected = true;
-  //     lastFireDetected = millis();
-  //   }
-  // }
   Serial.print("alignError = ");
   Serial.println(alignError);
 
@@ -366,25 +368,31 @@ void alignTo(){
   //   lastFireDetected = millis();
   //   alignError = pt_adc_vals[1] - pt_adc_vals[2];
   // }
-  int satPoint = 100;
+  int satPoint = 150;
   
+
+
   if(Kp*alignError < satPoint){
     alignErrorIntegral += alignError;
   } else {
     alignErrorIntegral = 0;
   }
   
-  if(fireDetected || ((millis() - lastFireDetected) <= 150)){
+  if(fireDetected || ((millis() - lastFireDetected) <= 300)){
     
     seekMotorCommands[0] = 1500 + SpeedCap( (Kp*alignError + Ki*alignErrorIntegral), satPoint);
     seekMotorCommands[1] = 1500 + SpeedCap( (Kp*alignError + Ki*alignErrorIntegral), satPoint);
     seekMotorCommands[2] = 1500 + SpeedCap( (Kp*alignError + Ki*alignErrorIntegral), satPoint);
     seekMotorCommands[3] = 1500 + SpeedCap( (Kp*alignError + Ki*alignErrorIntegral), satPoint);
-    if ((abs(alignError) < 2)&&(fireDetected)){
+    if ((abs(alignError) < 4)&&(fireDetected)&&(fireCentred)){
       consecutiveLowErrors++;
       alignErrorIntegral = 0;
       if (consecutiveLowErrors > 5){
-        seek_state = DRIVE;
+        if(seek_state == EXTINGUISH){
+          aligned = true;
+        } else if (seek_state == ALIGN){
+          seek_state = DRIVE;
+        }
         consecutiveLowErrors = 0;
       }
 
@@ -394,12 +402,17 @@ void alignTo(){
   } else {
     alignErrorIntegral = 0;
     consecutiveLowErrors = 0;
-    seekMotorCommands[0] = 1580;
-    seekMotorCommands[1] = 1580;
-    seekMotorCommands[2] = 1580;
-    seekMotorCommands[3] = 1580;
-    if(millis() - lastFireDetected > 3000){
+    if(millis() - lastFireDetected > 5000){
       //change state to roomba code
+      seekMotorCommands[0] = 1500 + satPoint;
+      seekMotorCommands[1] = 1500 + satPoint;
+      seekMotorCommands[2] = 1500 - satPoint;
+      seekMotorCommands[3] = 1500 - satPoint;
+    } else {
+      seekMotorCommands[0] = 1500 + satPoint;
+      seekMotorCommands[1] = 1500 + satPoint;
+      seekMotorCommands[2] = 1500 + satPoint;
+      seekMotorCommands[3] = 1500 + satPoint;
     }
   }
 }
@@ -485,46 +498,54 @@ int SpeedCap(float speed,int maxSpeed){
 }
 
 void extinguish(){
-  int Kp = 1;
-  int alignError = pt_adc_vals[1] - pt_adc_vals[2];
-  int ptSum = pt_adc_vals[1] + pt_adc_vals[2];
-  if(!aligned){
-    aligned = alignError < 2;
-  }
+  
   if (!aligned){
-    seekMotorCommands[0] = 1500 + SpeedCap( (Kp*alignError ), 300);
-    seekMotorCommands[1] = 1500 + SpeedCap( (Kp*alignError ), 300);
-    seekMotorCommands[2] = 1500 + SpeedCap( (Kp*alignError ), 300);
-    seekMotorCommands[3] = 1500 + SpeedCap( (Kp*alignError ), 300);
+    Serial.println("aligning");
+    alignTo();
   }
   else {
-    int distError = USvalues[1] - 3;
-    int KpDist = 5;
-    if(distError < 1){
-      if(ptSum < 1000 ){
-        digitalWrite(FAN_PIN,HIGH);
+    //int Kp = 5;
+    //int alignError = pt_adc_vals[1] - pt_adc_vals[2];
+    //alignErrorIntegral
 
-        while(ptSum < 1000){
-          delay(10);
-          pt_adc_vals[1] = analogRead(pt_pin_array[1]);
-          pt_adc_vals[2] = analogRead(pt_pin_array[2]);
-          ptSum = pt_adc_vals[1] + pt_adc_vals[2];
-        }
+    int ptSum = pt_adc_vals[1] + pt_adc_vals[2];
+    int distError = USvalues[1] - 6;
+    float KiDist = 0.01;
+    int KpDist = 5;
+    distErrorIntegral += distError;
+    if((abs(distError) < 1 )|| isClose){
+      
+      isClose = true;
+      //distErrorIntegral = 0;
+      // seekMotorCommands[0] = 1500;
+      // seekMotorCommands[1] = 1500;
+      // seekMotorCommands[2] = 1500;
+      // seekMotorCommands[3] = 1500;
+      alignTo();
+
+      if(ptSum < 1000 ){
+        Serial.println("blowing");
+        digitalWrite(FAN_PIN,HIGH);
+        distErrorIntegral = 0;
       } else {
         digitalWrite(FAN_PIN,LOW);
         firesExtinguished++;
         aligned = false;
+        isClose = false;
         seek_state = ALIGN;
       }
       
     } else {
-      seekMotorCommands[0] = 1500 + SpeedCap( (KpDist*distError ), 300);
-      seekMotorCommands[1] = 1500 + SpeedCap( (KpDist*distError ), 300);
-      seekMotorCommands[2] = 1500 - SpeedCap( (KpDist*distError ), 300);
-      seekMotorCommands[3] = 1500 - SpeedCap( (KpDist*distError ), 300);
+      Serial.println("getting close");
+      if (abs(KpDist*distError)>100){
+        distErrorIntegral =0;
+      }
+      seekMotorCommands[0] = 1500 + SpeedCap( (KpDist*distError + KiDist*distErrorIntegral ), 100);
+      seekMotorCommands[1] = 1500 + SpeedCap( (KpDist*distError + KiDist*distErrorIntegral ), 100);
+      seekMotorCommands[2] = 1500 - SpeedCap( (KpDist*distError + KiDist*distErrorIntegral ), 100);
+      seekMotorCommands[3] = 1500 - SpeedCap( (KpDist*distError + KiDist*distErrorIntegral ), 100);
     }
   }
-
 }
 void avoid()
 {
