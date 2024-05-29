@@ -89,7 +89,6 @@ float leftSide[2] = {0, 0}; //front, back
 float rightSide[2] = {0, 0}; //front, back
 bool debugAvoid = 0;
 
-
 //---------------------------------------------------- ULTRASONIC AND SERVO VARIABLES------------------------------------------//
 const int TRIG_PIN = 48;
 const int ECHO_PIN = 49;
@@ -174,14 +173,12 @@ void loop(void) //main loop
   };
 
   
-  
-
   sensorGather();
   USReading();
   //seek();
   //Serial.print(seek_state);
-  //driveTo();
-  avoid();
+  driveTo();
+  //avoid();
   suppressor();
   
   left_font_motor.writeMicroseconds(motorCommands[0]);
@@ -437,12 +434,12 @@ bool detected = 0; //checks if something detected
   // Serial.print("pt0   ");
   // Serial.print(pt_adc_vals[0]);
   // Serial.print("                         ");
-  Serial.print("pt1   ");
-  Serial.print(pt_adc_vals[1]);
-  Serial.print("                         ");
-  Serial.print("pt2   ");
-  Serial.print(pt_adc_vals[2]);
-  Serial.println("                         ");
+  // Serial.print("pt1   ");
+  // Serial.print(pt_adc_vals[1]);
+  // Serial.print("                         ");
+  // Serial.print("pt2   ");
+  // Serial.print(pt_adc_vals[2]);
+  // Serial.println("                         ");
   // Serial.print("pt3   ");
   // Serial.println(pt_adc_vals[3]);
 
@@ -450,27 +447,30 @@ bool detected = 0; //checks if something detected
   error = SpeedCap(Kp * error + Ki * integralerror, maxSpeed);
   
   //add state change to extinguishing
-  if((pt_adc_vals[2]< 20)&&(pt_adc_vals[1] <100)){    //-------------------threshold values-------------
+  if((pt_adc_vals[2]< 20)&&(pt_adc_vals[1] <80)){    //-------------------threshold values-------------
     seek_state = EXTINGUISH;
     //Serial.print("                                        extinguish!");
-    stop = 0;
     digitalWrite(FAN_PIN, HIGH);
   }
 
   // ADD CODE TO CHANGE INTO ALIGN
-  if((pt_adc_vals[1]>threshold)&&(pt_adc_vals[2]>threshold)){  /// check theshold values
+  if((pt_adc_vals[1]>threshold)&&(pt_adc_vals[2]>threshold)){  /// check theshold values currently at 500 ADC
     seek_state = ALIGN;
     //Serial.print("                                        align!");
   }
 
-  if((pt_adc_vals[2]<70)&&(pt_adc_vals[1]<200)){
-    proximity = 0.7; // changes the forwards speed of the robot when it is close to the fire...
-    //close = 1; 
+  if((pt_adc_vals[2]<200)&&(pt_adc_vals[1]<400)){
+    ServoLocked = true;
   } 
 
-  if((pt_adc_vals[2]<10)&&(pt_adc_vals[1]<110)){
+  if((pt_adc_vals[2]<70)&&(pt_adc_vals[1]<200)){
+    proximity = 0.7; // changes the forwards speed of the robot when it is close to the fire...
+    ServoLocked = true;
+  } 
+
+  if((pt_adc_vals[2]<10)&&(pt_adc_vals[1]<80)){
     proximity = 0; // changes the forwards speed of the robot when it is close to the fire...
-   // close = 0; 
+    stop = 0; 
   } 
 
   if(USvalues[1]<= 6){
@@ -498,7 +498,7 @@ int SpeedCap(float speed,int maxSpeed){
 }
 
 void extinguish(){
-  
+  ServoLocked = false; // added this to unlock servo
   if (!aligned){
     Serial.println("aligning");
     alignTo();
@@ -771,7 +771,7 @@ void changeAvoidState(AVOIDSTATE avoidStateIn){
 
 void suppressor(){
   int i;
-  if(0){
+  if(1){
     for (i = 0; i < 4; i++){
     //Serial.println(error);
     motorCommands[i] = seekMotorCommands[i];
