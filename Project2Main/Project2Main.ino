@@ -48,7 +48,7 @@ const int pt2 = A5;
 const int pt3 = A6;
 const int pt4 = A7;
 
-const int adc_amb_pt1 = 810;
+const int adc_amb_pt1 = 720;
 const int adc_amb_pt2 = 890;
 const int adc_amb_pt3 = 700;
 const int adc_amb_pt4 = 700;
@@ -127,6 +127,7 @@ int seek_state = 0;
 
 int pos = 0;
 //------------------------------------ align variables ----------------------------------------//
+int enterAlign = millis();
 int lastFireDetected = 0;
 float alignErrorIntegral = 0;
 int consecutiveLowErrors = 0;
@@ -175,11 +176,13 @@ void loop(void) //main loop
   
   sensorGather();
   USReading();
-  //seek();
+  seek();
   //Serial.print(seek_state);
-  driveTo();
-  //avoid();
+  //driveTo();
+  avoid();
   suppressor();
+  Serial.print("Seek State is ");
+  Serial.println(seek_state);
   
   left_font_motor.writeMicroseconds(motorCommands[0]);
   left_rear_motor.writeMicroseconds(motorCommands[1]);
@@ -381,7 +384,7 @@ void alignTo(){
     seekMotorCommands[1] = 1500 + SpeedCap( (Kp*alignError + Ki*alignErrorIntegral), satPoint);
     seekMotorCommands[2] = 1500 + SpeedCap( (Kp*alignError + Ki*alignErrorIntegral), satPoint);
     seekMotorCommands[3] = 1500 + SpeedCap( (Kp*alignError + Ki*alignErrorIntegral), satPoint);
-    if ((abs(alignError) < 4)&&(fireDetected)&&(fireCentred)){
+    if ((abs(alignError) < 10)&&(fireDetected)&&(fireCentred)){
       consecutiveLowErrors++;
       alignErrorIntegral = 0;
       if (consecutiveLowErrors > 5){
@@ -399,7 +402,7 @@ void alignTo(){
   } else {
     alignErrorIntegral = 0;
     consecutiveLowErrors = 0;
-    if(millis() - lastFireDetected > 5000){
+    if(((millis() - lastFireDetected) > 8000)&&((millis() - enterAlign) > 8000)){
       //change state to roomba code
       seekMotorCommands[0] = 1500 + satPoint;
       seekMotorCommands[1] = 1500 + satPoint;
@@ -447,26 +450,27 @@ bool detected = 0; //checks if something detected
   error = SpeedCap(Kp * error + Ki * integralerror, maxSpeed);
   
   //add state change to extinguishing
-  if((pt_adc_vals[2]< 20)&&(pt_adc_vals[1] <80)){    //-------------------threshold values-------------
+  if((pt_adc_vals[2]< 100)&&(pt_adc_vals[1] <200)){    //-------------------threshold values-------------
     seek_state = EXTINGUISH;
+    stop = 0;
     //Serial.print("                                        extinguish!");
-    digitalWrite(FAN_PIN, HIGH);
+    //digitalWrite(FAN_PIN, HIGH);
   }
 
   // ADD CODE TO CHANGE INTO ALIGN
   if((pt_adc_vals[1]>threshold)&&(pt_adc_vals[2]>threshold)){  /// check theshold values currently at 500 ADC
-    seek_state = ALIGN;
+    //seek_state = ALIGN;
     //Serial.print("                                        align!");
   }
 
-  if((pt_adc_vals[2]<200)&&(pt_adc_vals[1]<400)){
-    stop = 0;
-  } 
+  // if((pt_adc_vals[2]<200)&&(pt_adc_vals[1]<400)){
+  //   stop = 0;
+  // } 
 
-  if((pt_adc_vals[2]<70)&&(pt_adc_vals[1]<200)){
-    proximity = 0.7; // changes the forwards speed of the robot when it is close to the fire...
-    stop = 0;
-  } 
+  // if((pt_adc_vals[2]<70)&&(pt_adc_vals[1]<200)){
+  //   proximity = 0.7; // changes the forwards speed of the robot when it is close to the fire...
+  //   stop = 0;
+  // } 
 
   // if((pt_adc_vals[2]<10)&&(pt_adc_vals[1]<80)){
   //   proximity = 0; // changes the forwards speed of the robot when it is close to the fire...
@@ -509,7 +513,7 @@ void extinguish(){
 
     int ptSum = pt_adc_vals[1] + pt_adc_vals[2];
     int distError = USvalues[1] - 6;
-    float KiDist = 0.01;
+    float KiDist = 0.1;
     int KpDist = 5;
     distErrorIntegral += distError;
     if((abs(distError) < 1 )|| isClose){
@@ -531,6 +535,7 @@ void extinguish(){
         firesExtinguished++;
         aligned = false;
         isClose = false;
+        enterAlign = millis();
         seek_state = ALIGN;
       }
       
@@ -770,7 +775,8 @@ void changeAvoidState(AVOIDSTATE avoidStateIn){
 
 void suppressor(){
   int i;
-  if(1){
+
+  if(1/*(seek_state == EXTINGUISH)||(avoidState == IDLE)*/){
     for (i = 0; i < 4; i++){
     //Serial.println(error);
     motorCommands[i] = seekMotorCommands[i];
