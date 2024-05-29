@@ -460,23 +460,23 @@ bool detected = 0; //checks if something detected
   }
 
   if((pt_adc_vals[2]<200)&&(pt_adc_vals[1]<400)){
-    ServoLocked = true;
+    stop = 0;
   } 
 
   if((pt_adc_vals[2]<70)&&(pt_adc_vals[1]<200)){
     proximity = 0.7; // changes the forwards speed of the robot when it is close to the fire...
-    ServoLocked = true;
-  } 
-
-  if((pt_adc_vals[2]<10)&&(pt_adc_vals[1]<80)){
-    proximity = 0; // changes the forwards speed of the robot when it is close to the fire...
-    stop = 0; 
-  } 
-
-  if(USvalues[1]<= 6){
-    Serial.println("stopped with US Sensor.                       ");
     stop = 0;
-  }
+  } 
+
+  // if((pt_adc_vals[2]<10)&&(pt_adc_vals[1]<80)){
+  //   proximity = 0; // changes the forwards speed of the robot when it is close to the fire...
+  //   stop = 0; 
+  // } 
+
+  // if(USvalues[1]<= 6){
+  //   Serial.println("stopped with US Sensor.                       ");
+  //   stop = 0;
+  // }
  // Serial.println(USvalues[1]);
 
   seekMotorCommands[0] = stop *(1500 - error + (150*proximity)) ; //+ (-close * 30))*stop; 
@@ -498,7 +498,6 @@ int SpeedCap(float speed,int maxSpeed){
 }
 
 void extinguish(){
-  ServoLocked = false; // added this to unlock servo
   if (!aligned){
     Serial.println("aligning");
     alignTo();
