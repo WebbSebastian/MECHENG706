@@ -459,15 +459,7 @@ bool detected = 0; //checks if something detected
   // Serial.println("                         ");
   // Serial.print("pt3   ");
   // Serial.println(pt_adc_vals[3]);
-  
 
-  //add state change to extinguishing
-  if((pt_adc_vals[2]< 100)&&(pt_adc_vals[1] < 300)){
-    seek_state = EXTINGUISH;
-    stop = 0;
-    //Serial.print("                                        extinguish!");
-    //digitalWrite(FAN_PIN, HIGH);
-  }
 
   // ADD CODE TO CHANGE INTO ALIGN
   // if((pt_adc_vals[1]>threshold)&&(pt_adc_vals[2]>threshold)){  /// check theshold values currently at 500 ADC
@@ -501,6 +493,13 @@ bool detected = 0; //checks if something detected
     }
   }
 
+ //add state change to extinguishing
+  if((pt_change_percentage[1]> 80)&&(pt_change_percentage[2]>80)){
+    seek_state = EXTINGUISH;
+    stop = 0;
+    //Serial.print("                                        extinguish!");
+    //digitalWrite(FAN_PIN, HIGH);
+  }
   error = pt_change_percentage[1] - pt_change_percentage[2];
   error = SpeedCap(Kp * error + Ki * integralerror, maxSpeed);
   Serial.println(error);
