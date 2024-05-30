@@ -91,8 +91,8 @@ float rightSide[2] = {0, 0}; //front, back
 bool debugAvoid = 0;
 
 //---------------------------------------------------- ULTRASONIC AND SERVO VARIABLES------------------------------------------//
-const int TRIG_PIN = 48;
-const int ECHO_PIN = 49;
+const int TRIG_PIN = 9;
+const int ECHO_PIN = 8;
 const int FAN_PIN = 45;
 int servoPin = 42;
 
@@ -186,14 +186,23 @@ void loop(void) //main loop
   //driveTo();
   avoid();
   suppressor();
-  Serial.print("Seek State is ");
-  Serial.println(seek_state);
+  //Serial.print("Seek State is ");
+  //Serial.println(seek_state);
   
   left_font_motor.writeMicroseconds(motorCommands[0]);
   left_rear_motor.writeMicroseconds(motorCommands[1]);
   right_rear_motor.writeMicroseconds(motorCommands[2]);
   right_font_motor.writeMicroseconds(motorCommands[3]);
 
+
+  Serial.print("US 1 val = ");
+  Serial.print(USvalues[0]);
+
+  Serial.print(" US 2 val = ");
+  Serial.print(USvalues[1]);
+
+  Serial.print(" US 3 val = ");
+  Serial.println(USvalues[2]);
   delay(10);
 }
 
@@ -325,8 +334,11 @@ void seek(){
 
 void alignTo(){ 
   
-  float Kp = 1;
+  float Kp = 1.5;
   float Ki = 0.1;
+  if(seek_state == EXTINGUISH){
+    Ki = 0.3;
+  }
   
   float alignError = 0;
 
@@ -347,7 +359,7 @@ void alignTo(){
     }
   }
   
-  if((pt_change_percentage[2] + pt_change_percentage[1]) > (pt_change_percentage[0] + pt_change_percentage[3])){
+  if((pt_change_percentage[2] + pt_change_percentage[1]) > 20){
     alignError = pt_change_percentage[2] - pt_change_percentage[1];
     fireCentred = true;
     sum = pt_change_percentage[2] + pt_change_percentage[1];
@@ -356,20 +368,20 @@ void alignTo(){
     sum = pt_change_percentage[3] + pt_change_percentage[2] + pt_change_percentage[1] + pt_change_percentage[0];
   }
 
-  Serial.print("alignError = ");
-  Serial.println(alignError);
+  // Serial.print("alignError = ");
+  // Serial.println(alignError);
 
-  Serial.print("pt1 = ");
-  Serial.println(pt_adc_vals[0]);
+  // Serial.print("pt1 = ");
+  // Serial.println(pt_adc_vals[0]);
 
-  Serial.print("pt2 = ");
-  Serial.println(pt_adc_vals[1]);
+   Serial.print("pt2 = ");
+   Serial.println(pt_change_percentage[1]);
 
-  Serial.print("pt3 = ");
-  Serial.println(pt_adc_vals[2]);
+   Serial.print("pt3 = ");
+   Serial.println(pt_change_percentage[2]);
 
-  Serial.print("pt4 = ");
-  Serial.println(pt_adc_vals[3]);
+  // Serial.print("pt4 = ");
+  // Serial.println(pt_adc_vals[3]);
 
   // if(inSum < outSum ){
   //   fireDetected = true;
@@ -392,10 +404,10 @@ void alignTo(){
     seekMotorCommands[1] = 1500 + SpeedCap( (Kp*alignError + Ki*alignErrorIntegral), satPoint);
     seekMotorCommands[2] = 1500 + SpeedCap( (Kp*alignError + Ki*alignErrorIntegral), satPoint);
     seekMotorCommands[3] = 1500 + SpeedCap( (Kp*alignError + Ki*alignErrorIntegral), satPoint);
-    if ((abs(alignError) < 15)&&(fireDetected)&&(fireCentred)){
+    if ((abs(alignError) < 20)&&(fireDetected)&&(fireCentred)){
       consecutiveLowErrors++;
       alignErrorIntegral = 0;
-      if (consecutiveLowErrors > 5){
+      if (consecutiveLowErrors > 20){
         if(seek_state == EXTINGUISH){
           aligned = true;
         } else if (seek_state == ALIGN){
@@ -494,7 +506,7 @@ bool detected = 0; //checks if something detected
   }
 
  //add state change to extinguishing
-  if((pt_change_percentage[1]> 80)&&(pt_change_percentage[2]>80)){
+  if((pt_change_percentage[1]> 90)&&(pt_change_percentage[2]>90)){
     seek_state = EXTINGUISH;
     stop = 0;
     //Serial.print("                                        extinguish!");
@@ -543,11 +555,11 @@ void extinguish(){
     //alignErrorIntegral
 
     int ptSum = pt_adc_vals[1] + pt_adc_vals[2];
-    float distError = USvalues[1] - 4.5;
-    float KiDist = 0.1;
-    int KpDist = 5;
+    float distError = USvalues[1] - 3.5;
+    float KiDist = 0.4;
+    int KpDist = 10;
     distErrorIntegral += distError;
-    if((abs(distError) < 1 )|| isClose){
+    if((abs(distError) < 0.5 )|| isClose){
       
       isClose = true;
       //distErrorIntegral = 0;
@@ -858,7 +870,7 @@ int prevAvoidPrevIndex(int dist){
 void suppressor(){
   int i;
 
-  if(/*(seek_state == EXTINGUISH)||(currentAvoidState == IDLE)*/1){
+  if((seek_state == EXTINGUISH)||(currentAvoidState == IDLE)){
     for (i = 0; i < 4; i++){
     //Serial.println(error);
     motorCommands[i] = seekMotorCommands[i];
@@ -1064,7 +1076,7 @@ float HC_SR04_range()
     pulse_width = t2 - t1;
     if ( pulse_width > (MAX_DIST + 1000)) {
       SerialCom->println("HC-SR04: NOT found");
-      return;
+      return 20;
     }
   }
   // Measure how long the echo pin was held high (pulse width)
@@ -1075,8 +1087,8 @@ float HC_SR04_range()
     t2 = micros();
     pulse_width = t2 - t1;
     if ( pulse_width > (MAX_DIST + 1000) ) {
-      //SerialCom->println("HC-SR04: Out of range");
-      return;
+      SerialCom->println("HC-SR04: Out of range");
+      return 20;
     }
   }
 
