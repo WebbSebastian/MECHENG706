@@ -503,6 +503,7 @@ bool detected = 0; //checks if something detected
     
   if((pt_change_percentage[2]+pt_change_percentage[1])< 5){
     seek_state = ALIGN;
+    enterAlign = millis();
     seekMotorCommands[0] = 1500;
     seekMotorCommands[1] = 1500;
     seekMotorCommands[2] = 1500;
