@@ -739,6 +739,8 @@ void avoid()
         } else{
           changeAvoidState(FORWARDS);
         }
+      }else if (front || left){
+        timeOut = 0;
       }
       else if (timeOut >= timer){
         //movement finished => move forwards
@@ -750,11 +752,13 @@ void avoid()
       if (rightSide[0] || rightSide[1]){
         if(front && right){
           changeAvoidState(LEFTARC);
-        }else if(prevAvoidStates[prevAvoidPrevIndex(1)] == BACKWARDS){
+        } else if(prevAvoidStates[prevAvoidPrevIndex(1)] == BACKWARDS){
           changeAvoidState(BACKWARDS);
         } else{
           changeAvoidState(FORWARDS);
         }
+      }else if (front || right){
+        timeOut = 0;
       }
       else if (timeOut >= timer){
         //movement finished => move forwards
@@ -820,7 +824,7 @@ void avoid()
 void changeAvoidState(AVOIDSTATE avoidStateIn){
   timeOut = 0;
 
-  if (avoidStateIn == BACKWARDS || avoidStateIn == LEFTSLIDE || avoidStateIn == RIGHTSLIDE){
+  if (avoidStateIn == BACKWARDS){
     timer = 1500;
   }else if (avoidStateIn == LEFTARC || avoidStateIn == RIGHTARC){
     timer = 750;
