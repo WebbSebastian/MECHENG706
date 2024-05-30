@@ -49,10 +49,10 @@ const int pt2 = A5;
 const int pt3 = A6;
 const int pt4 = A7;
 
-const int adc_amb_pt1 = 720;
-const int adc_amb_pt2 = 880;
+const int adc_amb_pt1 = 800;
+const int adc_amb_pt2 = 910;
 const int adc_amb_pt3 = 940;
-const int adc_amb_pt4 = 950;
+const int adc_amb_pt4 = 960;
 
 int pt_amb_adc[4] = {adc_amb_pt1,adc_amb_pt2,adc_amb_pt3,adc_amb_pt4};
 int pt_pin_array[4] = {pt1,pt2,pt3,pt4};
@@ -128,8 +128,10 @@ int seek_state = 0;
 
 int pos = 0;
 //------------------------------------ align variables ----------------------------------------//
-int enterAlign = millis();
-int lastFireDetected = 0;
+int enterAlign;
+bool switch_align = 0;
+
+int lastFireDetected;
 float alignErrorIntegral = 0;
 int consecutiveLowErrors = 0;
 //------------------------------------ extinguish variables ----------------------------------------//
@@ -156,6 +158,8 @@ void setup(void)
 
   delay(1000); //settling time but no really needed  
   timeOutTotal = millis();
+  enterAlign = millis();
+  lastFireDetected = 0;
 }
 
 void loop(void) //main loop
@@ -322,7 +326,7 @@ void seek(){
 void alignTo(){ 
   
   float Kp = 1;
-  float Ki = 0.05;
+  float Ki = 0.1;
   
   float alignError = 0;
 
@@ -406,18 +410,23 @@ void alignTo(){
   } else {
     alignErrorIntegral = 0;
     consecutiveLowErrors = 0;
-    if(((millis() - lastFireDetected) > 8000)&&((millis() - enterAlign) > 8000)&&(seek_state == ALIGN)){
+    /*
+    if(((millis() - lastFireDetected) > 8000)&&((millis() - enterAlign) > 8000 - switch_align * 4000)&&(seek_state == ALIGN)){
+      enterAlign = millis();
+      switch_align = !switch_align;
+    }
+    if (switch_align){
       //change state to roomba code
       seekMotorCommands[0] = 1500 + satPoint;
       seekMotorCommands[1] = 1500 + satPoint;
       seekMotorCommands[2] = 1500 - satPoint;
       seekMotorCommands[3] = 1500 - satPoint;
-    } else {
+    } else {*/
       seekMotorCommands[0] = 1500 + satPoint;
       seekMotorCommands[1] = 1500 + satPoint;
       seekMotorCommands[2] = 1500 + satPoint;
       seekMotorCommands[3] = 1500 + satPoint;
-    }
+    //}
   }
 }
 
@@ -450,10 +459,10 @@ bool detected = 0; //checks if something detected
   // Serial.println("                         ");
   // Serial.print("pt3   ");
   // Serial.println(pt_adc_vals[3]);
-  // Serial.println(error);
+  
 
   //add state change to extinguishing
-  if((pt_adc_vals[2]< 100)&&(pt_adc_vals[1] <200)){  
+  if((pt_adc_vals[2]< 100)&&(pt_adc_vals[1] < 300)){
     seek_state = EXTINGUISH;
     stop = 0;
     //Serial.print("                                        extinguish!");
@@ -492,9 +501,9 @@ bool detected = 0; //checks if something detected
     }
   }
 
-  error = pt_change_percentage[2] - pt_change_percentage[1];
+  error = pt_change_percentage[1] - pt_change_percentage[2];
   error = SpeedCap(Kp * error + Ki * integralerror, maxSpeed);
-
+  Serial.println(error);
   seekMotorCommands[0] = stop *(1500 - error + (150*proximity)) ; //+ (-close * 30))*stop; 
   seekMotorCommands[1] = stop *(1500 - error + (150*proximity) ); //+ (-close * 30))*stop;
   seekMotorCommands[2] = stop *(1500 - error - (150*proximity)); //+ (-close * 30))*stop;
@@ -535,7 +544,7 @@ void extinguish(){
     //alignErrorIntegral
 
     int ptSum = pt_adc_vals[1] + pt_adc_vals[2];
-    float distError = USvalues[1] - 5;
+    float distError = USvalues[1] - 4.5;
     float KiDist = 0.1;
     int KpDist = 5;
     distErrorIntegral += distError;
@@ -805,7 +814,9 @@ void changeAvoidState(AVOIDSTATE avoidStateIn){
 
   if (avoidStateIn == BACKWARDS || avoidStateIn == LEFTSLIDE || avoidStateIn == RIGHTSLIDE){
     timer = 1500;
-  }else{
+  }else if (avoidStateIn == LEFTARC || avoidStateIn == RIGHTARC){
+    timer = 750;
+  } else{
     timer = 1000;
   }
 
