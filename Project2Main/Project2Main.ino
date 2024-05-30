@@ -306,10 +306,13 @@ void rotateServo(int degrees){
 
 void seek(){
   if (seek_state == ALIGN){
+    ServoLock = false;
     alignTo();
   } else if(seek_state == DRIVE){
+    ServoLock = false;
     driveTo();
   } else if(seek_state == EXTINGUISH){
+    ServoLock = true;
     extinguish();
   }
   //using pt array and IR array figure out motor commands
@@ -512,7 +515,7 @@ void extinguish(){
     //alignErrorIntegral
 
     int ptSum = pt_adc_vals[1] + pt_adc_vals[2];
-    int distError = USvalues[1] - 6;
+    float distError = USvalues[1] - 5;
     float KiDist = 0.1;
     int KpDist = 5;
     distErrorIntegral += distError;
