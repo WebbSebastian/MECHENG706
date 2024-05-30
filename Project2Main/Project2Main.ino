@@ -404,7 +404,7 @@ void alignTo(){
     seekMotorCommands[1] = 1500 + SpeedCap( (Kp*alignError + Ki*alignErrorIntegral), satPoint);
     seekMotorCommands[2] = 1500 + SpeedCap( (Kp*alignError + Ki*alignErrorIntegral), satPoint);
     seekMotorCommands[3] = 1500 + SpeedCap( (Kp*alignError + Ki*alignErrorIntegral), satPoint);
-    if ((abs(alignError) < 20)&&(fireDetected)&&(fireCentred)){
+    if ((abs(alignError) < 20)&&(fireDetected)&&(fireCentred) /* possible change ||(millis() - enterAlign) > 10000*/){
       consecutiveLowErrors++;
       alignErrorIntegral = 0;
       if (consecutiveLowErrors > 20){
@@ -445,7 +445,7 @@ void alignTo(){
 void driveTo(){  // TODO currently this just moves forward immediately which could cause issues down the line.
 bool detected = 0; //checks if something detected
   float Kp = 0.8;  
-  float Ki = 0.05;
+  float Ki = 0;
   int threshold = 500; // check the threshold values
   float integralerror = 0;
   bool direction = 1;
@@ -521,7 +521,7 @@ bool detected = 0; //checks if something detected
   seekMotorCommands[3] = stop *(1500 - error - (150*proximity)); //+ (-close * 30))*stop;
 
     
-  if((pt_change_percentage[2]+pt_change_percentage[1]) < 20){
+  if((pt_change_percentage[2]+pt_change_percentage[1]) < 30){
     seek_state = ALIGN;
     enterAlign = millis();
     seekMotorCommands[0] = 1500;
