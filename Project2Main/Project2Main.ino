@@ -554,7 +554,7 @@ void extinguish(){
 void avoid()
 {
   if(debugAvoid){
-    Serial.print("avoidState: "); Serial.print(currentAvoidState);
+    Serial.print("avoidState: "); Serial.print(avoidStateName[currentAvoidState]);
     Serial.print(", timeOut: "); Serial.print(timeOut); 
     Serial.print(", left: "); Serial.print(left); 
     Serial.print(", front: "); Serial.print(front);
@@ -568,19 +568,19 @@ void avoid()
   timeOut += millis() - timeOutTotal;
   timeOutTotal = millis();
 
-  if (USvalues[0] <= 19){
+  if (USvalues[0] <= 21){
     left = 1;
   }
   else {
     left = 0;
   }
-  if (USvalues[2] <= 19){
+  if (USvalues[2] <= 21){
     right = 1;
   }
   else{
     right = 0;
   }
-  if (USvalues[1] <= 10){
+  if (USvalues[1] <= 15){
     front = 1;
   }
   else{
