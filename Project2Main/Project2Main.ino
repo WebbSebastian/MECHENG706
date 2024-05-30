@@ -646,9 +646,9 @@ void avoid()
       }
       if (timeOut >= timer){
         //Rotate back to path after rotating to avoid
-        if (prevAvoidStates[prevAvoidIndex - 1 + NUMSTOREDSTATES*!prevAvoidIndex] == RIGHTARC && prevAvoidStates[prevAvoidIndex - 3 + NUMSTOREDSTATES*!(prevAvoidIndex && prevAvoidIndex - 1 && prevAvoidIndex - 2)] != LEFTARC){
+        if (prevAvoidStates[prevAvoidPrevIndex(1)] == RIGHTARC && prevAvoidStates[prevAvoidPrevIndex(3)] != LEFTARC){
           changeAvoidState(LEFTARC);
-        } else if (prevAvoidStates[prevAvoidIndex - 1 + NUMSTOREDSTATES*!prevAvoidIndex] == LEFTARC && prevAvoidStates[prevAvoidIndex - 3 + NUMSTOREDSTATES*!(prevAvoidIndex && prevAvoidIndex - 1 && prevAvoidIndex - 2)] != RIGHTARC){
+        } else if (prevAvoidStates[prevAvoidPrevIndex(1)] == LEFTARC && prevAvoidStates[prevAvoidPrevIndex(3)] != RIGHTARC){
           changeAvoidState(RIGHTARC);
         } else {
           //Movement finished => idle
@@ -669,8 +669,10 @@ void avoid()
       break;
     case LEFTARC:
       //Obstacle in collision path of rotation => move forwards
-      if (leftSide[0] || rightSide[1]){
-        changeAvoidState(FORWARDS);
+      if (leftSide[0]){
+        changeAvoidState(RIGHTSLIDE);
+      } else if (rightSide[1]){
+        changeAvoidState(LEFTSLIDE);
       }
       else if (timeOut >= timer){
         //movement finished => move forwards
@@ -679,8 +681,11 @@ void avoid()
       break;
     case RIGHTARC:
       //obstacle in collision path of rotation => move forwards
-      if (rightSide[0] || leftSide[1]){
-        changeAvoidState(FORWARDS);
+      if (rightSide[0]){
+        changeAvoidState(LEFTSLIDE);
+      }
+      else if(leftSide[1]){
+        changeAvoidState(RIGHTSLIDE);
       }
       else if (timeOut >= timer){
         //movement finished => move forwards
@@ -773,10 +778,26 @@ void changeAvoidState(AVOIDSTATE avoidStateIn){
   currentAvoidState = avoidStateIn;
 }
 
+int prevAvoidPrevIndex(int dist){
+  if (dist < 1){
+    return prevAvoidIndex;
+  }
+
+  int isNotLoop = 1;
+  
+  if (dist >= NUMSTOREDSTATES){
+      dist -= NUMSTOREDSTATES * (dist/NUMSTOREDSTATES);
+  }
+  for (int i = 0; i < dist; i++){
+    isNotLoop &= prevAvoidIndex - i;
+  }
+    return prevAvoidIndex - dist + NUMSTOREDSTATES*!isNotLoop;
+}
+
 void suppressor(){
   int i;
 
-  if(1/*(seek_state == EXTINGUISH)||(avoidState == IDLE)*/){
+  if((seek_state == EXTINGUISH)||(currentAvoidState == IDLE)){
     for (i = 0; i < 4; i++){
     //Serial.println(error);
     motorCommands[i] = seekMotorCommands[i];
