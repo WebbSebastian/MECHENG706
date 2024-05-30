@@ -49,9 +49,9 @@ const int pt2 = A5;
 const int pt3 = A6;
 const int pt4 = A7;
 
-const int adc_amb_pt1 = 800;
-const int adc_amb_pt2 = 910;
-const int adc_amb_pt3 = 940;
+const int adc_amb_pt1 = 730;
+const int adc_amb_pt2 = 870;
+const int adc_amb_pt3 = 930;
 const int adc_amb_pt4 = 960;
 
 int pt_amb_adc[4] = {adc_amb_pt1,adc_amb_pt2,adc_amb_pt3,adc_amb_pt4};
@@ -341,7 +341,7 @@ void alignTo(){
     if (pt_change_percentage[i] < 0) {
       pt_change_percentage[i] = 0;
     }
-    if(pt_change_percentage[i] > 5){
+    if(pt_change_percentage[i] > 15){
       fireDetected = true;
       lastFireDetected = millis();
     }
@@ -360,16 +360,16 @@ void alignTo(){
   Serial.println(alignError);
 
   Serial.print("pt1 = ");
-  Serial.println(pt_adc_vals[0]);
+  Serial.println(pt_change_percentage[0]);
 
   Serial.print("pt2 = ");
-  Serial.println(pt_adc_vals[1]);
+  Serial.println(pt_change_percentage[1]);
 
   Serial.print("pt3 = ");
-  Serial.println(pt_adc_vals[2]);
+  Serial.println(pt_change_percentage[2]);
 
   Serial.print("pt4 = ");
-  Serial.println(pt_adc_vals[3]);
+  Serial.println(pt_change_percentage[3]);
 
   // if(inSum < outSum ){
   //   fireDetected = true;
@@ -392,7 +392,7 @@ void alignTo(){
     seekMotorCommands[1] = 1500 + SpeedCap( (Kp*alignError + Ki*alignErrorIntegral), satPoint);
     seekMotorCommands[2] = 1500 + SpeedCap( (Kp*alignError + Ki*alignErrorIntegral), satPoint);
     seekMotorCommands[3] = 1500 + SpeedCap( (Kp*alignError + Ki*alignErrorIntegral), satPoint);
-    if ((abs(alignError) < 10)&&(fireDetected)&&(fireCentred)){
+    if ((abs(alignError) < 15)&&(fireDetected)&&(fireCentred)){
       consecutiveLowErrors++;
       alignErrorIntegral = 0;
       if (consecutiveLowErrors > 5){
