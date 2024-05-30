@@ -1,3 +1,4 @@
+
 int test = 0;
 
 #include <Servo.h>  //Need for Servo pulse output
@@ -422,7 +423,7 @@ void alignTo(){
 
 void driveTo(){  // TODO currently this just moves forward immediately which could cause issues down the line.
 bool detected = 0; //checks if something detected
-  float Kp = 1;  
+  float Kp = 0.5;  
   float Ki = 0;
   int threshold = 500; // check the threshold values
   float integralerror = 0;
@@ -431,6 +432,7 @@ bool detected = 0; //checks if something detected
   int proximity = 1;
   bool close = 0;
   bool stop = 1;
+  float pt_change_percentage[4];
   
   float currenterror = pt_adc_vals[2]- pt_adc_vals[1];
   //Serial.print(currenterror);
@@ -448,12 +450,10 @@ bool detected = 0; //checks if something detected
   // Serial.println("                         ");
   // Serial.print("pt3   ");
   // Serial.println(pt_adc_vals[3]);
+  // Serial.println(error);
 
-// Serial.println(error);
-  error = SpeedCap(Kp * error + Ki * integralerror, maxSpeed);
-  
   //add state change to extinguishing
-  if((pt_adc_vals[2]< 100)&&(pt_adc_vals[1] <200)){    //-------------------threshold values-------------
+  if((pt_adc_vals[2]< 100)&&(pt_adc_vals[1] <200)){  
     seek_state = EXTINGUISH;
     stop = 0;
     //Serial.print("                                        extinguish!");
@@ -461,10 +461,10 @@ bool detected = 0; //checks if something detected
   }
 
   // ADD CODE TO CHANGE INTO ALIGN
-  if((pt_adc_vals[1]>threshold)&&(pt_adc_vals[2]>threshold)){  /// check theshold values currently at 500 ADC
-    //seek_state = ALIGN;
-    //Serial.print("                                        align!");
-  }
+  // if((pt_adc_vals[1]>threshold)&&(pt_adc_vals[2]>threshold)){  /// check theshold values currently at 500 ADC
+  //   //seek_state = ALIGN;
+  //   //Serial.print("                                        align!");
+  // }
 
   // if((pt_adc_vals[2]<200)&&(pt_adc_vals[1]<400)){
   //   stop = 0;
@@ -485,11 +485,31 @@ bool detected = 0; //checks if something detected
   //   stop = 0;
   // }
  // Serial.println(USvalues[1]);
+   for (int i = 1; i < 3;i++){
+    pt_change_percentage[i] = ((pt_amb_adc[i]- pt_adc_vals[i])/(float)pt_amb_adc[i])*100;
+    if (pt_change_percentage[i] < 0) {
+      pt_change_percentage[i] = 0;
+    }
+  }
+
+  error = pt_change_percentage[2] - pt_change_percentage[1];
+  error = SpeedCap(Kp * error + Ki * integralerror, maxSpeed);
 
   seekMotorCommands[0] = stop *(1500 - error + (150*proximity)) ; //+ (-close * 30))*stop; 
   seekMotorCommands[1] = stop *(1500 - error + (150*proximity) ); //+ (-close * 30))*stop;
   seekMotorCommands[2] = stop *(1500 - error - (150*proximity)); //+ (-close * 30))*stop;
   seekMotorCommands[3] = stop *(1500 - error - (150*proximity)); //+ (-close * 30))*stop;
+
+    
+  if((pt_change_percentage[2]+pt_change_percentage[1])< 5){
+    seek_state = ALIGN;
+    enterAlign = millis();
+    seekMotorCommands[0] = 1500;
+    seekMotorCommands[1] = 1500;
+    seekMotorCommands[2] = 1500;
+    seekMotorCommands[3] = 1500;
+  }
+
 }
 
 int SpeedCap(float speed,int maxSpeed){
