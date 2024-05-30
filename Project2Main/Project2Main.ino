@@ -84,8 +84,8 @@ int timer = 1000;
 int left = 0;
 int right = 0;
 int front = 0;
-int motorUpper = 1600;
-int motorLower = 1400;
+int motorUpper = 1650;
+int motorLower = 1350;
 float leftSide[2] = {0, 0}; //front, back
 float rightSide[2] = {0, 0}; //front, back
 bool debugAvoid = 0;
@@ -432,8 +432,8 @@ void alignTo(){
 
 void driveTo(){  // TODO currently this just moves forward immediately which could cause issues down the line.
 bool detected = 0; //checks if something detected
-  float Kp = 0.5;  
-  float Ki = 0;
+  float Kp = 0.8;  
+  float Ki = 0.05;
   int threshold = 500; // check the threshold values
   float integralerror = 0;
   bool direction = 1;
@@ -509,7 +509,7 @@ bool detected = 0; //checks if something detected
   seekMotorCommands[3] = stop *(1500 - error - (150*proximity)); //+ (-close * 30))*stop;
 
     
-  if((pt_change_percentage[2]+pt_change_percentage[1])< 5){
+  if((pt_change_percentage[2]+pt_change_percentage[1]) < 20){
     seek_state = ALIGN;
     enterAlign = millis();
     seekMotorCommands[0] = 1500;
@@ -644,6 +644,11 @@ void avoid()
       else if (left){
         //Obstacle in front to left => rotate right
         changeAvoidState(RIGHTARC);
+      } else if (rightSide[0]){
+        changeAvoidState(LEFTSLIDE);
+      }
+      else if(leftSide[1]){
+        changeAvoidState(RIGHTSLIDE);
       }
       break;
     case FORWARDS:
@@ -727,7 +732,9 @@ void avoid()
     case LEFTSLIDE:
       //Obstacle in collision path of translation => move forwards
       if (leftSide[0] || leftSide[1]){
-        if(prevAvoidStates[prevAvoidPrevIndex(1)] == BACKWARDS){
+        if(front && left){
+          changeAvoidState(RIGHTARC);
+        }else if(prevAvoidStates[prevAvoidPrevIndex(1)] == BACKWARDS){
           changeAvoidState(BACKWARDS);
         } else{
           changeAvoidState(FORWARDS);
@@ -741,7 +748,9 @@ void avoid()
     case RIGHTSLIDE:
       //obstacle in collision path of translation => move forwards
       if (rightSide[0] || rightSide[1]){
-        if(prevAvoidStates[prevAvoidPrevIndex(1)] == BACKWARDS){
+        if(front && right){
+          changeAvoidState(LEFTARC);
+        }else if(prevAvoidStates[prevAvoidPrevIndex(1)] == BACKWARDS){
           changeAvoidState(BACKWARDS);
         } else{
           changeAvoidState(FORWARDS);
