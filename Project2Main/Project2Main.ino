@@ -422,7 +422,7 @@ void alignTo(){
 
 void driveTo(){  // TODO currently this just moves forward immediately which could cause issues down the line.
 bool detected = 0; //checks if something detected
-  float Kp = 0.4;  
+  float Kp = 1;  
   float Ki = 0;
   int threshold = 500; // check the threshold values
   float integralerror = 0;
@@ -571,19 +571,19 @@ void avoid()
   timeOut += millis() - timeOutTotal;
   timeOutTotal = millis();
 
-  if (USvalues[0] <= 21){
+  if (USvalues[0] <= 18){
     left = 1;
   }
   else {
     left = 0;
   }
-  if (USvalues[2] <= 21){
+  if (USvalues[2] <= 18){
     right = 1;
   }
   else{
     right = 0;
   }
-  if (USvalues[1] <= 15){
+  if (USvalues[1] <= 10){
     front = 1;
   }
   else{
@@ -595,6 +595,7 @@ void avoid()
   leftSide[1] = ir_obj_detect[2]; //RL IR
   rightSide[1] = ir_obj_detect[3]; // RR IR
   
+
 
   switch(currentAvoidState){
     case IDLE:
@@ -662,11 +663,11 @@ void avoid()
     case BACKWARDS:
       if (timeOut >= timer){
         //movement finished => rotate away from closest wall
-        if(irReadingCm(0) > irReadingCm(1)){
-          changeAvoidState(LEFTARC);
+        if(irReadingCm(2) > irReadingCm(3)){
+            changeAvoidState(LEFTSLIDE);  
         }
         else{
-          changeAvoidState(RIGHTARC);
+            changeAvoidState(RIGHTSLIDE);
         }
       }
       break;
@@ -698,7 +699,11 @@ void avoid()
     case LEFTSLIDE:
       //Obstacle in collision path of translation => move forwards
       if (leftSide[0] || leftSide[1]){
-        changeAvoidState(FORWARDS);
+        if(prevAvoidStates[prevAvoidPrevIndex(1)] == BACKWARDS){
+          changeAvoidState(BACKWARDS);
+        } else{
+          changeAvoidState(FORWARDS);
+        }
       }
       else if (timeOut >= timer){
         //movement finished => move forwards
@@ -708,7 +713,11 @@ void avoid()
     case RIGHTSLIDE:
       //obstacle in collision path of translation => move forwards
       if (rightSide[0] || rightSide[1]){
-        changeAvoidState(FORWARDS);
+        if(prevAvoidStates[prevAvoidPrevIndex(1)] == BACKWARDS){
+          changeAvoidState(BACKWARDS);
+        } else{
+          changeAvoidState(FORWARDS);
+        }
       }
       else if (timeOut >= timer){
         //movement finished => move forwards
@@ -773,6 +782,12 @@ void avoid()
 
 void changeAvoidState(AVOIDSTATE avoidStateIn){
   timeOut = 0;
+
+  if (avoidStateIn == BACKWARDS || avoidStateIn == LEFTSLIDE || avoidStateIn == RIGHTSLIDE){
+    timer = 1500;
+  }else{
+    timer = 1000;
+  }
 
   //create circular array to store prev avoid states  
   prevAvoidStates[prevAvoidIndex] = currentAvoidState;
