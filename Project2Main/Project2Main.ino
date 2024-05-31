@@ -37,10 +37,16 @@ const int pt1 = A4;
 const int pt2 = A5;
 const int pt3 = A6;
 const int pt4 = A7;
-const int adc_amb_pt1 = 800;
-const int adc_amb_pt2 = 910;
-const int adc_amb_pt3 = 940;
-const int adc_amb_pt4 = 960;
+
+const int adc_amb_pt1 = 700;
+const int adc_amb_pt2 = 860;
+const int adc_amb_pt3 = 920;
+const int adc_amb_pt4 = 920;
+const int adc_amb_pt1 = 1010;
+const int adc_amb_pt2 = 1000;
+const int adc_amb_pt3 = 990;
+const int adc_amb_pt4 = 1000;
+
 int pt_amb_adc[4] = {adc_amb_pt1,adc_amb_pt2,adc_amb_pt3,adc_amb_pt4};
 int pt_pin_array[4] = {pt1,pt2,pt3,pt4};
 //----------------------------------------------- Avoidance global variables ----------------------------------------------//
@@ -65,14 +71,14 @@ int timer = 1000;
 int left = 0;
 int right = 0;
 int front = 0;
-int motorUpper = 1600;
-int motorLower = 1400;
+int motorUpper = 1650;
+int motorLower = 1350;
 float leftSide[2] = {0, 0}; //front, back
 float rightSide[2] = {0, 0}; //front, back
 bool debugAvoid = 0;
 //---------------------------------------------------- ULTRASONIC AND SERVO VARIABLES------------------------------------------//
-const int TRIG_PIN = 48;
-const int ECHO_PIN = 49;
+const int TRIG_PIN = 9;
+const int ECHO_PIN = 8;
 const int FAN_PIN = 45;
 int servoPin = 42;
 #define USL 0 //Ultrasonic left
@@ -112,6 +118,9 @@ bool aligned = 0;
 bool isClose = 0;
 int firesExtinguished = 0;
 int distErrorIntegral = 0;
+
+
+bool supressMotors = 1;
 void setup(void)
 {
   turret_motor.attach(servoPin);
@@ -153,15 +162,32 @@ void loop(void) //main loop
   //driveTo();
   avoid();
   suppressor();
-  Serial.print("Seek State is ");
-  Serial.println(seek_state);
-  
+  //Serial.print("Seek State is ");
+  //Serial.println(seek_state);
+
+  if (supressMotors = 1){
+    for(int i = 0; i < 4; i++){
+      motorCommands[i] = 1500;
+    }
+  }
+
   left_font_motor.writeMicroseconds(motorCommands[0]);
   left_rear_motor.writeMicroseconds(motorCommands[1]);
   right_rear_motor.writeMicroseconds(motorCommands[2]);
   right_font_motor.writeMicroseconds(motorCommands[3]);
+
+
+  /*
+  Serial.print("US 1 val = ");
+  Serial.print(USvalues[0]);
+  Serial.print(" US 2 val = ");
+  Serial.print(USvalues[1]);
+  Serial.print(" US 3 val = ");
+  Serial.println(USvalues[2]);
+  */
   delay(10);
 }
+
 void sensorGather(){
   int i;
   //calculate angle?
@@ -275,8 +301,11 @@ void seek(){
 }
 void alignTo(){ 
   
-  float Kp = 1;
+  float Kp = 1.5;
   float Ki = 0.1;
+  if(seek_state == EXTINGUISH){
+    Ki = 0.3;
+  }
   
   float alignError = 0;
   float sum;
@@ -288,13 +317,13 @@ void alignTo(){
     if (pt_change_percentage[i] < 0) {
       pt_change_percentage[i] = 0;
     }
-    if(pt_change_percentage[i] > 5){
+    if(pt_change_percentage[i] > 15){
       fireDetected = true;
       lastFireDetected = millis();
     }
   }
   
-  if((pt_change_percentage[2] + pt_change_percentage[1]) > (pt_change_percentage[0] + pt_change_percentage[3])){
+  if((pt_change_percentage[2] + pt_change_percentage[1]) > 20){
     alignError = pt_change_percentage[2] - pt_change_percentage[1];
     fireCentred = true;
     sum = pt_change_percentage[2] + pt_change_percentage[1];
@@ -302,16 +331,23 @@ void alignTo(){
     alignError =  pt_change_percentage[3] + pt_change_percentage[2] - pt_change_percentage[1] -pt_change_percentage[0];
     sum = pt_change_percentage[3] + pt_change_percentage[2] + pt_change_percentage[1] + pt_change_percentage[0];
   }
-  Serial.print("alignError = ");
-  Serial.println(alignError);
-  Serial.print("pt1 = ");
-  Serial.println(pt_adc_vals[0]);
-  Serial.print("pt2 = ");
-  Serial.println(pt_adc_vals[1]);
-  Serial.print("pt3 = ");
-  Serial.println(pt_adc_vals[2]);
-  Serial.print("pt4 = ");
-  Serial.println(pt_adc_vals[3]);
+  // Serial.print("alignError = ");
+  // Serial.println(alignError);
+  // Serial.print("pt1 = ");
+  // Serial.println(pt_adc_vals[0]);
+
+   Serial.print("pt2 = ");
+   Serial.println(pt_change_percentage[1]);
+  //  Serial.print("pt2 = ");
+  //  Serial.println(pt_change_percentage[1]);
+
+   Serial.print("pt3 = ");
+   Serial.println(pt_change_percentage[2]);
+  //  Serial.print("pt3 = ");
+  //  Serial.println(pt_change_percentage[2]);
+
+  // Serial.print("pt4 = ");
+  // Serial.println(pt_adc_vals[3]);
   // if(inSum < outSum ){
   //   fireDetected = true;
   //   lastFireDetected = millis();
@@ -331,10 +367,10 @@ void alignTo(){
     seekMotorCommands[1] = 1500 + SpeedCap( (Kp*alignError + Ki*alignErrorIntegral), satPoint);
     seekMotorCommands[2] = 1500 + SpeedCap( (Kp*alignError + Ki*alignErrorIntegral), satPoint);
     seekMotorCommands[3] = 1500 + SpeedCap( (Kp*alignError + Ki*alignErrorIntegral), satPoint);
-    if ((abs(alignError) < 10)&&(fireDetected)&&(fireCentred)){
+    if ((abs(alignError) < 20)&&(fireDetected)&&(fireCentred) /* possible change ||(millis() - enterAlign) > 10000*/){
       consecutiveLowErrors++;
       alignErrorIntegral = 0;
-      if (consecutiveLowErrors > 5){
+      if (consecutiveLowErrors > 20){
         if(seek_state == EXTINGUISH){
           aligned = true;
         } else if (seek_state == ALIGN){
@@ -348,7 +384,6 @@ void alignTo(){
   } else {
     alignErrorIntegral = 0;
     consecutiveLowErrors = 0;
-    /*
     if(((millis() - lastFireDetected) > 8000)&&((millis() - enterAlign) > 8000 - switch_align * 4000)&&(seek_state == ALIGN)){
       enterAlign = millis();
       switch_align = !switch_align;
@@ -359,17 +394,17 @@ void alignTo(){
       seekMotorCommands[1] = 1500 + satPoint;
       seekMotorCommands[2] = 1500 - satPoint;
       seekMotorCommands[3] = 1500 - satPoint;
-    } else {*/
+    } else {
       seekMotorCommands[0] = 1500 + satPoint;
       seekMotorCommands[1] = 1500 + satPoint;
       seekMotorCommands[2] = 1500 + satPoint;
       seekMotorCommands[3] = 1500 + satPoint;
-    //}
+    }
   }
 }
 void driveTo(){  // TODO currently this just moves forward immediately which could cause issues down the line.
 bool detected = 0; //checks if something detected
-  float Kp = 0.5;  
+  float Kp = 0.8;  
   float Ki = 0;
   int threshold = 500; // check the threshold values
   float integralerror = 0;
@@ -395,16 +430,6 @@ bool detected = 0; //checks if something detected
   // Serial.println("                         ");
   // Serial.print("pt3   ");
   // Serial.println(pt_adc_vals[3]);
-
-
-  //add state change to extinguishing
-  if((pt_adc_vals[2]< 100)&&(pt_adc_vals[1] < 300)){
-    seek_state = EXTINGUISH;
-    stop = 0;
-    //Serial.print("                                        extinguish!");
-    //digitalWrite(FAN_PIN, HIGH);
-  }
-
   // ADD CODE TO CHANGE INTO ALIGN
   // if((pt_adc_vals[1]>threshold)&&(pt_adc_vals[2]>threshold)){  /// check theshold values currently at 500 ADC
   //   //seek_state = ALIGN;
@@ -432,9 +457,8 @@ bool detected = 0; //checks if something detected
       pt_change_percentage[i] = 0;
     }
   }
-
  //add state change to extinguishing
-  if((pt_change_percentage[1]> 80)&&(pt_change_percentage[2]>80)){
+  if((pt_change_percentage[1]> 90)&&(pt_change_percentage[2]>90)){
     seek_state = EXTINGUISH;
     stop = 0;
     //Serial.print("                                        extinguish!");
@@ -448,7 +472,7 @@ bool detected = 0; //checks if something detected
   seekMotorCommands[2] = stop *(1500 - error - (150*proximity)); //+ (-close * 30))*stop;
   seekMotorCommands[3] = stop *(1500 - error - (150*proximity)); //+ (-close * 30))*stop;
     
-  if((pt_change_percentage[2]+pt_change_percentage[1])< 5){
+  if((pt_change_percentage[2]+pt_change_percentage[1]) < 30){
     seek_state = ALIGN;
     enterAlign = millis();
     seekMotorCommands[0] = 1500;
@@ -477,11 +501,11 @@ void extinguish(){
     //int alignError = pt_adc_vals[1] - pt_adc_vals[2];
     //alignErrorIntegral
     int ptSum = pt_adc_vals[1] + pt_adc_vals[2];
-    float distError = USvalues[1] - 4.5;
-    float KiDist = 0.1;
-    int KpDist = 5;
+    float distError = USvalues[1] - 3.5;
+    float KiDist = 0.4;
+    int KpDist = 10;
     distErrorIntegral += distError;
-    if((abs(distError) < 1 )|| isClose){
+    if((abs(distError) < 0.5 )|| isClose){
       
       isClose = true;
       //distErrorIntegral = 0;
@@ -573,6 +597,16 @@ void avoid()
       else if (left){
         //Obstacle in front to left => rotate right
         changeAvoidState(RIGHTARC);
+      } else if (rightSide[0]){
+        changeAvoidState(LEFTSLIDE);
+      } // If IR detect object, rotate away
+      else if (rightSide[0] || leftSide[1]){
+        changeAvoidState(LEFTARC);
+      }
+      else if(leftSide[1]){
+        changeAvoidState(RIGHTSLIDE);
+      else if(rightSide[1] || leftSide[0]){
+        changeAvoidState(RIGHTARC);
       }
       break;
     case FORWARDS:
@@ -607,14 +641,18 @@ void avoid()
       }
       if (timeOut >= timer){
         //Rotate back to path after rotating to avoid
+        /*
         if (prevAvoidStates[prevAvoidPrevIndex(1)] == RIGHTARC && prevAvoidStates[prevAvoidPrevIndex(3)] != LEFTARC){
           changeAvoidState(LEFTARC);
         } else if (prevAvoidStates[prevAvoidPrevIndex(1)] == LEFTARC && prevAvoidStates[prevAvoidPrevIndex(3)] != RIGHTARC){
           changeAvoidState(RIGHTARC);
         } else {
+          */
           //Movement finished => idle
           changeAvoidState(IDLE);
         }
+        changeAvoidState(IDLE);
+        //}
       }
       break;
     case BACKWARDS:
@@ -656,12 +694,16 @@ void avoid()
     case LEFTSLIDE:
       //Obstacle in collision path of translation => move forwards
       if (leftSide[0] || leftSide[1]){
-        if(prevAvoidStates[prevAvoidPrevIndex(1)] == BACKWARDS){
+        if(front && left){
+          changeAvoidState(RIGHTARC);
+        }else if(prevAvoidStates[prevAvoidPrevIndex(1)] == BACKWARDS){
           changeAvoidState(BACKWARDS);
         } else{
           changeAvoidState(FORWARDS);
         }
-      }
+      }/*else if (front || left){
+        timeOut = 0;
+      }*/
       else if (timeOut >= timer){
         //movement finished => move forwards
         changeAvoidState(FORWARDS);
@@ -670,12 +712,16 @@ void avoid()
     case RIGHTSLIDE:
       //obstacle in collision path of translation => move forwards
       if (rightSide[0] || rightSide[1]){
-        if(prevAvoidStates[prevAvoidPrevIndex(1)] == BACKWARDS){
+        if(front && right){
+          changeAvoidState(LEFTARC);
+        } else if(prevAvoidStates[prevAvoidPrevIndex(1)] == BACKWARDS){
           changeAvoidState(BACKWARDS);
         } else{
           changeAvoidState(FORWARDS);
         }
-      }
+      }/*else if (front || right){
+        timeOut = 0;
+      }*/
       else if (timeOut >= timer){
         //movement finished => move forwards
         changeAvoidState(FORWARDS);
@@ -736,13 +782,18 @@ void avoid()
 }
 void changeAvoidState(AVOIDSTATE avoidStateIn){
   timeOut = 0;
-  if (avoidStateIn == BACKWARDS || avoidStateIn == LEFTSLIDE || avoidStateIn == RIGHTSLIDE){
+
+  if (avoidStateIn == BACKWARDS){
     timer = 1500;
+    timer = 1200;
   }else if (avoidStateIn == LEFTARC || avoidStateIn == RIGHTARC){
     timer = 750;
+    timer = 700;
   } else{
     timer = 1000;
+    timer = 850;
   }
+
   //create circular array to store prev avoid states  
   prevAvoidStates[prevAvoidIndex] = currentAvoidState;
   prevAvoidIndex = (prevAvoidIndex + 1)%NUMSTOREDSTATES;
@@ -770,6 +821,15 @@ void suppressor(){
     motorCommands[i] = seekMotorCommands[i];
     }
   } else {
+    // align variables reset
+    if(seek_state == ALIGN){
+      enterAlign = millis();
+      switch_align = 0;
+      alignErrorIntegral = 0;
+      consecutiveLowErrors = 0;
+    }
+    
+    //asign
     for (i = 0; i < 4; i++){
     motorCommands[i] = avoidMotorCommands[i];
     }
@@ -936,7 +996,7 @@ float HC_SR04_range()
     pulse_width = t2 - t1;
     if ( pulse_width > (MAX_DIST + 1000)) {
       SerialCom->println("HC-SR04: NOT found");
-      return;
+      return 20;
     }
   }
   // Measure how long the echo pin was held high (pulse width)
@@ -947,8 +1007,8 @@ float HC_SR04_range()
     t2 = micros();
     pulse_width = t2 - t1;
     if ( pulse_width > (MAX_DIST + 1000) ) {
-      //SerialCom->println("HC-SR04: Out of range");
-      return;
+      SerialCom->println("HC-SR04: Out of range");
+      return 20;
     }
   }
   t2 = micros();
