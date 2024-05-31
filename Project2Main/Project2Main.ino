@@ -49,10 +49,10 @@ const int pt2 = A5;
 const int pt3 = A6;
 const int pt4 = A7;
 
-const int adc_amb_pt1 = 700;
-const int adc_amb_pt2 = 860;
-const int adc_amb_pt3 = 920;
-const int adc_amb_pt4 = 920;
+const int adc_amb_pt1 = 1010;
+const int adc_amb_pt2 = 1000;
+const int adc_amb_pt3 = 990;
+const int adc_amb_pt4 = 1000;
 
 int pt_amb_adc[4] = {adc_amb_pt1,adc_amb_pt2,adc_amb_pt3,adc_amb_pt4};
 int pt_pin_array[4] = {pt1,pt2,pt3,pt4};
@@ -139,6 +139,9 @@ bool aligned = 0;
 bool isClose = 0;
 int firesExtinguished = 0;
 int distErrorIntegral = 0;
+
+
+bool supressMotors = 1;
 void setup(void)
 {
   turret_motor.attach(servoPin);
@@ -189,12 +192,18 @@ void loop(void) //main loop
   //Serial.print("Seek State is ");
   //Serial.println(seek_state);
   
+  if (supressMotors = 1){
+    for(int i = 0; i < 4; i++){
+      motorCommands[i] = 1500;
+    }
+  }
+
   left_font_motor.writeMicroseconds(motorCommands[0]);
   left_rear_motor.writeMicroseconds(motorCommands[1]);
   right_rear_motor.writeMicroseconds(motorCommands[2]);
   right_font_motor.writeMicroseconds(motorCommands[3]);
 
-
+  /*
   Serial.print("US 1 val = ");
   Serial.print(USvalues[0]);
 
@@ -203,6 +212,7 @@ void loop(void) //main loop
 
   Serial.print(" US 3 val = ");
   Serial.println(USvalues[2]);
+  */
   delay(10);
 }
 
@@ -374,11 +384,11 @@ void alignTo(){
   // Serial.print("pt1 = ");
   // Serial.println(pt_adc_vals[0]);
 
-   Serial.print("pt2 = ");
-   Serial.println(pt_change_percentage[1]);
+  //  Serial.print("pt2 = ");
+  //  Serial.println(pt_change_percentage[1]);
 
-   Serial.print("pt3 = ");
-   Serial.println(pt_change_percentage[2]);
+  //  Serial.print("pt3 = ");
+  //  Serial.println(pt_change_percentage[2]);
 
   // Serial.print("pt4 = ");
   // Serial.println(pt_adc_vals[3]);
@@ -656,11 +666,12 @@ void avoid()
       else if (left){
         //Obstacle in front to left => rotate right
         changeAvoidState(RIGHTARC);
-      } else if (rightSide[0]){
-        changeAvoidState(LEFTSLIDE);
+      } // If IR detect object, rotate away
+      else if (rightSide[0] || leftSide[1]){
+        changeAvoidState(LEFTARC);
       }
-      else if(leftSide[1]){
-        changeAvoidState(RIGHTSLIDE);
+      else if(rightSide[1] || leftSide[0]){
+        changeAvoidState(RIGHTARC);
       }
       break;
     case FORWARDS:
@@ -695,14 +706,16 @@ void avoid()
       }
       if (timeOut >= timer){
         //Rotate back to path after rotating to avoid
+        /*
         if (prevAvoidStates[prevAvoidPrevIndex(1)] == RIGHTARC && prevAvoidStates[prevAvoidPrevIndex(3)] != LEFTARC){
           changeAvoidState(LEFTARC);
         } else if (prevAvoidStates[prevAvoidPrevIndex(1)] == LEFTARC && prevAvoidStates[prevAvoidPrevIndex(3)] != RIGHTARC){
           changeAvoidState(RIGHTARC);
         } else {
+          */
           //Movement finished => idle
-          changeAvoidState(IDLE);
-        }
+        changeAvoidState(IDLE);
+        //}
       }
       break;
     case BACKWARDS:
@@ -837,11 +850,11 @@ void changeAvoidState(AVOIDSTATE avoidStateIn){
   timeOut = 0;
 
   if (avoidStateIn == BACKWARDS){
-    timer = 1500;
+    timer = 1200;
   }else if (avoidStateIn == LEFTARC || avoidStateIn == RIGHTARC){
-    timer = 750;
+    timer = 700;
   } else{
-    timer = 1000;
+    timer = 850;
   }
 
   //create circular array to store prev avoid states  
